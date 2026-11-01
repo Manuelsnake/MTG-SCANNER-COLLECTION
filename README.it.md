@@ -1,5 +1,6 @@
 # MTG Collection Manager
-*Identità Futura Provvisoria: ManaTeca — Scry & Tell*
+
+## Identità Futura Provvisoria: ManaTeca — Scry & Tell
 
 [![Licenza](https://img.shields.io/badge/Licenza-Apache_2.0-blue.svg)](LICENSE)
 ![Piattaforma](https://img.shields.io/badge/Piattaforma-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)

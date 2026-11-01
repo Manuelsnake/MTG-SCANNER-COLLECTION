@@ -1,4 +1,5 @@
 # ManaTeca — Scry & Tell
+
 ## Technical Specification: Multilingual Deck Builder, Commander Intelligence & Rebranding Roadmap
 
 - **Document Version:** 1.0.0
@@ -48,22 +49,27 @@ flowchart TD
 Inspired by the workflow and visual usability of Archidekt, ManaTeca will provide an integrated, responsive deck-building suite that directly interfaces with the user's private physical inventory.
 
 ### 2.1 Supported Game Formats & Deck Rules
+
 - **Commander / EDH & Duel Commander:** 100-card singleton, Commander / Partner / Background / Friends Forever selection, Color Identity validation.
 - **Constructed 60-Card Formats:** Standard, Modern, Pioneer, Legacy, Vintage, Pauper (60-card mainboard + 15-card sideboard, maximum 4 copies rule).
 - **Casual & Specialty Formats:** Oathbreaker (Signature Spell + Planeswalker), Premodern, Canadian Highlander, Brawl.
 
 ### 2.2 Multilingual Card Search & Printing Disambiguation
+
 Users must be able to search and add cards using localized card names across all 18 supported languages:
+
 - **Italian:** *"Fulmine"* $\rightarrow$ Lightning Bolt, *"Contromagia"* $\rightarrow$ Counterspell.
 - **French:** *"Foudre"* $\rightarrow$ Lightning Bolt, *"Contresort"* $\rightarrow$ Counterspell.
 - **German, Spanish, Portuguese, Japanese, Korean, Russian, Chinese.**
 
 #### Architectural Separation of Concerns
+
 1. **Canonical Oracle Identity:** The deck rules engine evaluates legality, color identity, mana value, and singleton limits strictly using the English canonical Oracle record.
 2. **Physical Printing & Language Selection:** When adding a card, the user can attach a specific physical printing (`set_code`, `collector_number`, `lang`, `finish`).
 3. **No Language Fragmentation:** Selecting an Italian printing (`CLB #187 [IT]`) and an English printing (`LEA #1 [EN]`) of Lightning Bolt evaluates to the exact same canonical card identity without violating deck-building rules.
 
 ### 2.3 Two-Way Collection & Inventory Integration
+
 The Deck Builder communicates with the SQLite inventory via relational deck-card links:
 
 ```sql
@@ -102,6 +108,7 @@ CREATE TABLE IF NOT EXISTS deck_cards (
 - **Deck Deletion Safety:** Deleting a deck never deletes or reduces the underlying inventory copies.
 
 ### 2.4 Visual & Tabular Workspace Modes
+
 - **Visual Grid Mode:** Fluid drag-and-drop workspace grouping cards by custom categories (e.g., *Ramp*, *Card Draw*, *Single Target Removal*, *Board Wipes*, *Win Conditions*, *Mana Base*).
 - **Tabular / List Mode:** Fast, keyboard-navigable spreadsheet view for bulk quantity adjustments, condition checks, and price tracking.
 - **Deck Analytics:**
@@ -116,6 +123,7 @@ CREATE TABLE IF NOT EXISTS deck_cards (
 ## 3. Milestone 11: Commander Bracket & Combo Intelligence
 
 ### 3.1 Official Commander Bracket Classification System
+
 The system integrates the official 5-tier Commander Bracket framework established by Wizards of the Coast and the Commander Rules Committee:
 
 | Bracket Tier | Name | Key Characteristics & Criteria |
@@ -127,19 +135,23 @@ The system integrates the official 5-tier Commander Bracket framework establishe
 | **Bracket 5** | **cEDH** | Competitive EDH: turn 1–3 win capability, maximum density of free interaction, Thoracle/Consultation lines, zero compromise for speed. |
 
 #### Advisory & Explainable Evaluation
+
 - **No Infallible Dogma:** The bracket evaluation is purely advisory. The application provides an explicit breakdown explaining *why* a deck is categorized in a given bracket (e.g., *"Detected 3 Game Changers: Demonic Tutor, Mana Crypt, Rhystic Study; 1 verified 2-card infinite combo"*).
 - **Source Versioning:** Bracket criteria, Game Changers lists, and fast mana definitions are versioned with effective publication dates (e.g., `WotC Commander Guidance: September 2024 / Q1 2026`). Reference data can be updated without recompiling the application binary.
 - **Manual Adjustment:** Users can override the advisory bracket to match their local playgroup's rule 0 consensus.
 
 ### 3.2 Combo & Synergy Recognition Engine (Commander Spellbook Integration)
-ManaTeca integrates with the open-source dataset provided by **Commander Spellbook** (https://commanderspellbook.com/):
+
+ManaTeca integrates with the open-source dataset provided by **Commander Spellbook** (<https://commanderspellbook.com/>):
 
 #### Legal & Architectural Constraints
+
 - **Licensing Compliance:** Prior to production ingestion, the application verifies Commander Spellbook's open data licensing, attribution requirements, and API distribution restrictions. No unauthorized web scraping is performed.
 - **Offline / Structured Dataset:** Combo definitions are stored in a structured local SQLite table, enabling instant offline detection when analyzing decklists.
 - **Role of Generative AI:** On-device AI may assist in phrasing step-by-step combo execution for user readability, but **is strictly forbidden from hallucinating or inventing unverified game combos**. All combos must map to verified rules records.
 
 #### Combo Classification Hierarchy
+
 1. **Verified Infinite Combos:** Infinite mana, infinite damage, infinite card draw, infinite tokens, infinite turns, infinite ETB/death triggers.
 2. **Two-Card Combos:** Compact interactions (e.g., *Thassa's Oracle + Demonic Consultation*, *Heliod, Sun-Crowned + Walking Ballista*).
 3. **Multi-Card Combos:** Sequences requiring 3+ specific pieces on the battlefield or in graveyard.
@@ -148,7 +160,9 @@ ManaTeca integrates with the open-source dataset provided by **Commander Spellbo
 6. **Incomplete Combos:** Highlights combos where the user owns 2 of 3 required cards, with a single-click option to add the missing card to the wishlist.
 
 #### Detailed Combo Presentation
+
 For every detected combo, the user can inspect:
+
 - Cards involved with interactive image zoom.
 - Total mana required to cast and initiate.
 - Prerequisite board/graveyard setup.
@@ -160,6 +174,7 @@ For every detected combo, the user can inspect:
 ## 4. Final Rebranding Phase: ManaTeca — Scry & Tell
 
 ### 4.1 Product Identity Transition
+
 Once core scanning, inventory, deck building, and local AI capabilities have matured, the application will undergo a formal public rebranding:
 
 - **New Name:** **ManaTeca — Scry & Tell**
@@ -167,6 +182,7 @@ Once core scanning, inventory, deck building, and local AI capabilities have mat
 - **Public Assets:** Window titles, visual logo, desktop/start menu shortcuts, installer banners, bilingual documentation, and GitHub repository naming.
 
 ### 4.2 Critical Technical Requirement: Database Continuity & Path Discovery
+
 Existing users must never experience data loss during the rebranding transition.
 
 ```mermaid
@@ -181,6 +197,7 @@ flowchart TD
 ```
 
 #### Backward Compatibility Safeguards
+
 1. **Fallback Discovery:** The Tauri backend will inspect the legacy path (`com.mtgcollectionmanager.desktop`) before creating a new database.
 2. **Safe Migration:** When a legacy database is detected, the application creates a verified timestamped backup before linking or migrating data to the new path.
 3. **Current State:** The application retains `com.mtgcollectionmanager.desktop` as its official identifier throughout Milestones 2 through 9.
@@ -203,4 +220,4 @@ flowchart TD
 | **Milestone 9** | Cross-platform installers & packaging | Tauri build, NSIS, WiX | Planned |
 | **Milestone 10** | Multilingual Deck Builder (Archidekt-Inspired) | Decks schema, Scryfall multilingual | Future Planned |
 | **Milestone 11** | Commander Bracket Intelligence & Spellbook Combo Engine | Commander Spellbook dataset, bracket rules | Future Planned |
-| **Final Rebranding**| ManaTeca — Scry & Tell Transition | Discovery migration, brand assets | Final Transition |
+| **Final Rebranding** | ManaTeca — Scry & Tell Transition | Discovery migration, brand assets | Final Transition |
