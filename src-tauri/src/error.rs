@@ -18,8 +18,26 @@ pub enum AppError {
     #[error("Conflict error: {0}")]
     Conflict(String),
 
+    #[error("Network error: {0}")]
+    Network(String),
+
+    #[error("Scryfall API error: {0}")]
+    Scryfall(String),
+
+    #[error("Rate limit exceeded: {0}")]
+    RateLimit(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("IO error: {0}")]
+    Io(String),
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self {
+        AppError::Io(err.to_string())
+    }
 }
 
 impl Serialize for AppError {

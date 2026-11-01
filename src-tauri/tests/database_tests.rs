@@ -1,6 +1,8 @@
 use mtg_collection_manager_lib::db::Database;
 use mtg_collection_manager_lib::error::AppError;
-use mtg_collection_manager_lib::models::{AddManualCardInput, CreateLocationInput};
+use mtg_collection_manager_lib::models::{
+    AddManualCardInput, AddScryfallCardInput, CreateLocationInput,
+};
 use tempfile::NamedTempFile;
 
 #[test]
@@ -9,7 +11,7 @@ fn test_database_creation_and_migration_execution() {
     let db = Database::init_file(tmp.path()).expect("Failed to init db");
 
     let info = db.get_info().expect("Failed to get info");
-    assert_eq!(info.schema_version, 1);
+    assert_eq!(info.schema_version, 4);
     assert_eq!(info.integrity_status, "ok");
     assert_eq!(info.cards_count, 0);
     assert_eq!(info.inventory_count, 0);
@@ -475,7 +477,7 @@ fn test_milestone_1_acceptance_lifecycle() {
         let info = db
             .get_info()
             .expect("Step 10 failed: get db info after restart");
-        assert_eq!(info.schema_version, 1);
+        assert_eq!(info.schema_version, 4);
         assert_eq!(info.integrity_status, "ok");
         assert_eq!(info.cards_count, 1);
         assert_eq!(info.printings_count, 1);
@@ -506,4 +508,142 @@ fn test_milestone_1_acceptance_lifecycle() {
         assert!(inventory[0].collection_ids.contains(&col_vault_id));
         assert!(inventory[0].collection_ids.contains(&col_trade_id));
     }
+}
+
+#[test]
+fn test_auto_heal_existing_manual_card_inventory() {
+    let db = Database::init_memory().expect("Initialize in-memory database");
+
+    // 1. User added card manually in Milestone 1 (no scryfall_id, no image_url)
+    let manual_input = AddManualCardInput {
+        card_name: "Sol Ring".to_string(),
+        set_code: "LEA".to_string(),
+        collector_number: "1".to_string(),
+        set_name: "Limited Edition Alpha".to_string(),
+        quantity: 2,
+        language: "en".to_string(),
+        finish: "nonfoil".to_string(),
+        condition: "NM".to_string(),
+        purchase_price: Some(150000), // €1,500.00
+        currency: Some("EUR".to_string()),
+        location_id: None,
+        notes: Some("Alpha pristine ring".to_string()),
+    };
+
+    let item = db.add_manual_card(manual_input).expect("Add manual card");
+    assert!(item.scryfall_id.is_none());
+    assert!(item.image_url.is_none());
+
+    // 2. Scryfall cache subsequently caches LEA #1
+    let conn = db.get_conn();
+    let conn_guard = conn.lock().unwrap();
+    conn_guard
+        .execute(
+            r#"
+            INSERT INTO scryfall_cache (
+                scryfall_id, oracle_id, name, name_normalized, set_code, collector_number, set_name, lang,
+                rarity, mana_cost, type_line, image_normal, image_small, image_art_crop, finishes, raw_json, cached_at, expires_at
+            ) VALUES (
+                'sol-ring-uuid-lea-1', 'oracle-sol-ring', 'Sol Ring', 'sol ring', 'lea', '1', 'Limited Edition Alpha', 'en',
+                'uncommon', '{1}', 'Artifact', 'https://cards.scryfall.io/normal/lea/1.jpg',
+                'https://cards.scryfall.io/small/lea/1.jpg', 'https://cards.scryfall.io/art/lea/1.jpg',
+                'nonfoil', '{}', datetime('now'), datetime('now', '+30 days')
+            )
+            "#,
+            [],
+        )
+        .expect("Seed scryfall cache");
+    drop(conn_guard);
+
+    // 3. Run auto-healing backfill
+    let healed_count = db
+        .backfill_inventory_metadata_from_cache()
+        .expect("Backfill inventory metadata");
+    assert_eq!(healed_count, 1);
+
+    // 4. Verify inventory items now contain healed Scryfall ID and images
+    let inventory = db
+        .get_inventory_items(None, None)
+        .expect("Get inventory items");
+    assert_eq!(inventory.len(), 1);
+    let healed = &inventory[0];
+    assert_eq!(healed.scryfall_id.as_deref(), Some("sol-ring-uuid-lea-1"));
+    assert_eq!(
+        healed.image_url.as_deref(),
+        Some("https://cards.scryfall.io/normal/lea/1.jpg")
+    );
+    assert_eq!(
+        healed.image_small.as_deref(),
+        Some("https://cards.scryfall.io/small/lea/1.jpg")
+    );
+
+    // 5. Verify user inventory quantity, condition, and price remain untouched
+    assert_eq!(healed.quantity, 2);
+    assert_eq!(healed.condition, "NM");
+    assert_eq!(healed.finish, "nonfoil");
+    assert_eq!(healed.purchase_price, Some(150000));
+    assert_eq!(healed.notes.as_deref(), Some("Alpha pristine ring"));
+}
+
+#[test]
+fn test_add_double_faced_card_with_array_payload() {
+    let db = Database::init_memory().expect("Initialize in-memory database");
+
+    let faces_json = serde_json::json!([
+        {
+            "name": "Delver of Secrets",
+            "mana_cost": "{U}",
+            "type_line": "Creature — Human Wizard",
+            "image_uris": {
+                "small": "https://cards.scryfall.io/small/front/1/1/delver.jpg",
+                "normal": "https://cards.scryfall.io/normal/front/1/1/delver.jpg"
+            }
+        },
+        {
+            "name": "Insectile Aberration",
+            "mana_cost": "",
+            "type_line": "Creature — Human Insect",
+            "image_uris": {
+                "small": "https://cards.scryfall.io/small/back/1/1/delver.jpg",
+                "normal": "https://cards.scryfall.io/normal/back/1/1/delver.jpg"
+            }
+        }
+    ]);
+
+    let input = AddScryfallCardInput {
+        scryfall_id: "delver-of-secrets-uuid".to_string(),
+        oracle_id: Some("delver-oracle".to_string()),
+        card_name: "Delver of Secrets // Insectile Aberration".to_string(),
+        printed_name: None,
+        set_code: "ISD".to_string(),
+        collector_number: "51".to_string(),
+        set_name: "Innistrad".to_string(),
+        release_date: Some("2011-09-30".to_string()),
+        layout: Some("transform".to_string()),
+        rarity: Some("common".to_string()),
+        mana_cost: Some("{U}".to_string()),
+        type_line: Some("Creature — Human Wizard // Creature — Human Insect".to_string()),
+        image_url: Some("https://cards.scryfall.io/normal/front/1/1/delver.jpg".to_string()),
+        image_small: Some("https://cards.scryfall.io/small/front/1/1/delver.jpg".to_string()),
+        image_art_crop: None,
+        card_faces: Some(faces_json),
+        quantity: 4,
+        language: "en".to_string(),
+        finish: "nonfoil".to_string(),
+        condition: "NM".to_string(),
+        purchase_price: Some(150),
+        currency: Some("EUR".to_string()),
+        location_id: None,
+        notes: None,
+        collection_ids: vec![],
+    };
+
+    let item = db
+        .add_card_from_scryfall(input)
+        .expect("Add double-faced card");
+    assert_eq!(item.quantity, 4);
+    assert!(item.card_faces.is_some());
+    let faces_str = item.card_faces.unwrap();
+    assert!(faces_str.contains("Delver of Secrets"));
+    assert!(faces_str.contains("Insectile Aberration"));
 }

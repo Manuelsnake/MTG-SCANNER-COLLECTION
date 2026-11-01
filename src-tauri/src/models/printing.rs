@@ -10,6 +10,11 @@ pub struct Printing {
     pub set_name: String,
     pub release_date: Option<String>,
     pub layout: String,
+    pub rarity: Option<String>,
+    pub mana_cost: Option<String>,
+    pub type_line: Option<String>,
+    pub image_url: Option<String>,
+    pub price_eur: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
 }

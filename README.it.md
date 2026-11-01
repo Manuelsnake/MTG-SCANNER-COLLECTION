@@ -1,4 +1,5 @@
 # MTG Collection Manager
+*Identità Futura Provvisoria: ManaTeca — Scry & Tell*
 
 [![Licenza](https://img.shields.io/badge/Licenza-Apache_2.0-blue.svg)](LICENSE)
 ![Piattaforma](https://img.shields.io/badge/Piattaforma-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)
@@ -8,9 +9,9 @@
 [English](README.md) | **Italiano**
 
 > [!NOTE]
-> **Stato del Progetto: In Fase di Sviluppo Iniziale (Milestone 0 Completata)**
+> **Stato del Progetto: In Sviluppo Attivo (Milestone 0 e 1 Completate — Milestone 2 In Corso)**
 >
-> MTG Collection Manager si trova attualmente nella fase preliminare di predisposizione dell'architettura e del repository. La Milestone 0 è completata, mentre la Milestone 1 non è ancora iniziata. Nessun codice applicativo Tauri o React è stato ancora generato. Tutte le funzionalità, le metriche prestazionali (come i 60 FPS per la webcam) e i componenti architetturali descritti di seguito rappresentano specifiche di progettazione e obiettivi tecnici pianificati per il prodotto finale.
+> MTG Collection Manager ha completato la propria architettura di base, lo schema relazionale SQLite (Milestone 1) ed è attualmente in fase di completamento della Milestone 2 (integrazione Scryfall, ricerca multilingua, selezione stampe ed edizioni, aggiunta alla collezione da Scryfall, cache immagini e visualizzatore zoom ad alta risoluzione nella collezione) sul branch `feature/milestone-2-scryfall`. La priorità principale di sviluppo avanzerà verso l'acquisizione e scansione da webcam e scanner flatbed (Milestone 3 e 4) e il gestore integrato di AI locale (Milestone 5). La visione di prodotto a lungo termine evolverà in **ManaTeca — Scry & Tell**, introducendo un Deck Builder multilingua ispirato ad Archidekt, la classificazione Commander Bracket ufficiale e l'analisi combinazioni verificate nelle milestone future.
 
 **MTG Collection Manager** è un'applicazione desktop libera, open-source e attenta alla privacy per la scansione, l'identificazione e la catalogazione di collezioni di carte di Magic: The Gathering. Sviluppata con **Tauri 2**, **Rust** e **React 19**, pone come priorità assoluta un'esperienza solida e reattiva su **Windows**, preservando un'architettura modulare e pulita per Linux e macOS.
 
@@ -57,21 +58,47 @@
 - **Ricerca e Statistiche in Linguaggio Naturale:** Consente di interrogare la collezione con linguaggio colloquiale (es. *"Mostrami tutti i vampiri neri foil di Innistrad"* oppure *"Qual è il valore di mercato totale dei miei mazzi Commander?"*). Qualsiasi proposta di modifica o operazione batch generata dall'assistente richiede sempre l'esplicita conferma preventiva dell'utente.
 - **Regole Ufficiali e Interazioni tra Carte:** Spiega interazioni complesse e risponde a dubbi arbitrali basandosi sul Comprehensive Rules ufficiale di Magic e sui ruling di Scryfall. Riporta con precisione la versione/data del documento di regole utilizzato e distingue in modo trasparente le citazioni letterali delle regole verificate dalle elaborazioni sintetiche dell'AI.
 
+### 6. Deck Builder Multilingua (Ispirato ad Archidekt — Futura Pianificazione)
+
+- **Gestione Completa dei Mazzi:** Creazione, duplicazione, categorizzazione, importazione ed esportazione mazzi per tutti i formati ufficiali e amatoriali (Commander/EDH, Modern, Standard, Pioneer, Legacy, Vintage, Pauper, Oathbreaker).
+- **Ricerca Multilingua Obbligatoria & Separazione Identità:** Ricerca e aggiunta carte in qualsiasi lingua supportata (Italiano, English, Français, Deutsch, Español, Português, 日本語, 한국어, Русский, 简体中文) mantenendo l'identità Oracle canonica in inglese, la color identity, la legalità di formato e il testo delle regole. Una specifica stampa fisica e lingua può essere associata alla carta nel mazzo senza frammentare le regole di gioco.
+- **Integrazione Diretta con l'Inventario Personale:** Comunicazione bidirezionale con il database SQLite locale. Gli utenti possono inserire carte direttamente dalla collezione posseduta, tracciare le copie mancanti rispetto a quelle possedute, allocare carte fisiche su più mazzi senza duplicare i record e preservare finitura, lingua e stampa esatta.
+- **Analisi e Statistiche Avanzate del Mazzo:** Curva di mana, distribuzione colori, ripartizione tipi di carta, rapporto creature/non-creature, conteggio terre, costo di mana medio (CMC), stima del valore economico e categorie personalizzate sia in vista grafica visuale che tabellare.
+
+### 7. Intelligenza Commander Bracket & Motore Combinazioni (Futura Pianificazione)
+
+- **Framework Ufficiale Commander Bracket:** Sistema consultivo e trasparente per la valutazione della potenza del mazzo basato sui 5 scaglioni ufficiali:
+  - *Bracket 1: Exhibition*
+  - *Bracket 2: Core*
+  - *Bracket 3: Upgraded*
+  - *Bracket 4: Optimized*
+  - *Bracket 5: cEDH*
+  La valutazione analizza fast mana, Game Changers, tutori, combo infinite, turni extra, mass land denial e velocità competitiva complessiva.
+- **Riferimenti Versionati e Aggiornabili:** Gli elenchi dei Game Changers e i criteri di bracket sono versionati e datati, permettendo aggiornamenti nel tempo con spiegazioni trasparenti e non dogmatiche.
+- **Motore di Riconoscimento Combo e Sinergie (Integrazione Commander Spellbook):** Analisi completa della decklist rispetto al dataset verificato di Commander Spellbook (distinguendo combo infinite verificate, interazioni a 2 carte, combo multi-carta, combo condizionali, forti sinergie e combo incomplete con carte mancanti). L'AI assiste nella spiegazione delle interazioni ma non inventa mai combinazioni arbitrarie non conformi alle regole.
+
+### 8. Strategia di Rebranding Futuro & Continuità Dati (ManaTeca — Scry & Tell)
+
+- **Fase Dedicata di Rebranding Finale:** Al termine del consolidamento delle funzionalità cardine di scansione e inventario, l'applicazione adotterà la nuova identità **ManaTeca — Scry & Tell** (nome visualizzato, logo, icona, titoli delle finestre e repository).
+- **Continuità Assoluta del Database & Percorsi:** Per garantire che nessun utente perda la propria collezione durante l'aggiornamento, l'applicazione integrerà una strategia di discovery retrocompatibile del database SQLite (ricerca fallback nella cartella `com.mtgcollectionmanager.desktop`).
+
 ---
 
 ## Panoramica dell'Architettura Target
 
 > [!NOTE]
-> Il diagramma sottostante illustra l'architettura software di riferimento pianificata per il prodotto finale. L'attuale repository (Milestone 0) ospita i requisiti di governance, i flussi CI, le licenze e le specifiche tecniche. L'implementazione del codice applicativo inizierà con la Milestone 1.
+> Il diagramma sottostante illustra l'architettura software di riferimento pianificata per il prodotto finale. Le Milestone 0 e 1 sono completate e verificate, e la Milestone 2 è funzionalmente completa sul branch `feature/milestone-2-scryfall`.
 
 ```text
-MTG Collection Manager (Architettura Target del Prodotto)
+MTG Collection Manager / ManaTeca (Architettura Target del Prodotto)
 ├── Frontend: React 19 + TypeScript + Vite + Tailwind CSS 4 + Zustand
 │   ├── Navigazione & Viste Collezione (Inventario, Raccoglitori, Mazzi, Mercato)
+│   ├── Deck Builder Multilingua (Griglia Visuale, Vista Tabellare, Curva & Colori)
+│   ├── Intelligenza Commander (Bracket Analyzer, Motore Combo Spellbook)
 │   ├── Chat Assistente MTG Integrata (Query in Linguaggio Naturale & Regole)
 │   └── UI Gestore Modelli Locali (Diagnostica Hardware, Catalogo, Downloader)
 ├── Shell Desktop: Tauri 2 (Rust)
-├── Database: SQLite (integrato via rusqlite con WAL mode e FTS5)
+├── Database: SQLite (integrato via rusqlite con WAL mode, FTS5 e Continuità Dati)
 ├── Acquisizione:
 │   ├── Scanner Live Webcam (HTML5 MediaDevices + Web Worker stabilità)
 │   ├── Sidecar TWAIN Windows (Processo isolato a 32-bit via TWAINDSM.dll)
@@ -84,7 +111,10 @@ MTG Collection Manager (Architettura Target del Prodotto)
 │   ├── Modelli di Visione (LFM2.5-VL / Qwen2.5-VL GGUF) per identificazione carte
 │   ├── Modelli di Testo (GGUF) per Assistente MTG & Motore Regole
 │   └── Motore Standalone Tesseract OCR (Modalità Zero-AI)
-└── API Esterne: Scryfall API (client con rate limit a 5 req/s) & CardTrader API
+└── API & Dataset Esterni:
+    ├── Scryfall API (Client asincrono rate-limited, ricerca multilingua & Bulk Data)
+    ├── Dataset Aperto Commander Spellbook
+    └── Link Prezzi Conforme Cardmarket & CardTrader API
 ```
 
 ---
@@ -93,12 +123,12 @@ MTG Collection Manager (Architettura Target del Prodotto)
 
 - **Milestone 0: Preparazione del Progetto & CI** :white_check_mark: *(Completato)*
   - Setup repository Git, licenza Apache-2.0, file NOTICE, documentazione bilingue, verifiche CI.
-- **Milestone 1: Fondamenta & Schema Relazionale SQLite** *(In corso / Verifica)*
-  - Scaffold Tauri 2 + React 19, database SQLite relazionale con migrazioni versionate, schema per inventario e collezioni.
-- **Milestone 2: Client Asincrono Scryfall & Cache Locale** *(Pianificato)*
-  - Rate limiting a ~5 req/s, backoff esponenziale, ingestione Bulk Data, interfaccia di verifica.
-- **Milestone 3: Acquisizione Immagini, Ritaglio & Scanner Live Webcam** *(Pianificato)*
-  - Live Camera Scanner a 60 FPS con rilevamento stabilità e anti-duplicato, test comparativi OpenCV/Rust.
+- **Milestone 1: Fondamenta & Schema Relazionale SQLite** :white_check_mark: *(Completato)*
+  - Scaffold Tauri 2 + React 19, database SQLite relazionale con migrazioni versionate, schema per inventario e collezioni, inserimento manuale, persistenza locale.
+- **Milestone 2: Client Asincrono Scryfall, Ricerca Multilingua, 4 Modalità di Visualizzazione & UI Bilingue (IT/EN)** :hammer_and_wrench: *(In Corso)*
+  - Client Scryfall rate-limited, cache SQLite, ricerca multilingua in 18 lingue, selezione edizioni e stampe specifiche, aggiunta alla collezione da Scryfall, cache immagini su disco con gerarchia di fallback, supporto carte bifronte (MDFC), anteprima al passaggio del mouse (hover preview), lightbox zoom ad alta risoluzione sia nella ricerca che nella collezione, 4 modalità di visualizzazione della collezione personalizzabili (Griglia, Compatta, Tabella, Galleria) e internazionalizzazione completa dell'interfaccia (UI in Italiano e Inglese con autorilevamento lingua del sistema operativo, selettore sempre visibile `[ IT ] [ EN ]` nella barra di navigazione superiore e impostazioni persistenti).
+- **Milestone 3: Acquisizione Immagini, Ritaglio & Scanner Live Webcam** *(Pianificato - Prossima Priorità Principale)*
+  - Live Camera Scanner a 60 FPS con rilevamento stabilità e anti-duplicato, pipeline di rilevamento e riconoscimento carte, test comparativi OpenCV/Rust.
 - **Milestone 4: Scanner Fisici Flatbed (Priorità Windows)** *(Pianificato)*
   - Sidecar TWAIN a 32-bit, WIA 2.0 nativo, protezione scanner piani.
 - **Milestone 5: Gestore Integrato Modelli AI Locali & Motore di Visione (Modalità Zero-AI)** *(Pianificato)*
@@ -117,6 +147,26 @@ MTG Collection Manager (Architettura Target del Prodotto)
   - Funzionamento 100% locale, riservato e offline per impostazione predefinita.
 - **Milestone 9: Packaging Cross-Platform & Release GitHub** *(Pianificato)*
   - Installer Windows `.exe` (NSIS) e `.msi`, Linux `.AppImage`/`.deb`, macOS `.dmg`.
+- **Milestone 10: Deck Builder Multilingua (Ispirato ad Archidekt)** *(Futura Milestone Maggiore)*
+  - Costruzione mazzi per formato, selezione Commander, tracciamento carte possedute vs mancanti nell'inventario, ricerca multilingua, statistiche curva/colori e categorizzazione libera.
+- **Milestone 11: Intelligenza Commander Bracket & Motore Combo** *(Futura Milestone Maggiore)*
+  - Classificazione ufficiale nei 5 bracket Commander (da Exhibition a cEDH) con score consultivo spiegabile, Game Changers versionati e motore combo basato su Commander Spellbook.
+- **Fase Finale di Rebranding: ManaTeca — Scry & Tell** *(Transizione Conclusiva)*
+  - Lancio del brand definitivo, aggiornamento icone e installer, migrazione retrocompatibile garantita di AppData/SQLite.
+
+---
+
+## Supporto al Progetto & Donazioni
+
+MTG Collection Manager è e **rimarrà per sempre un software libero e open source al 100%** sotto licenza Apache 2.0. Non esistono piani a pagamento, abbonamenti, funzionalità bloccate né pubblicità. Tutte le funzionalità sono e saranno sempre accessibili a chiunque senza alcuna restrizione e le donazioni **non sono mai richieste** per utilizzare l'applicazione.
+
+Se apprezzi il progetto, lo trovi utile e desideri supportarne lo sviluppo indipendente continuo, qualsiasi contributo è benvenuto ma **completamente volontario**:
+
+- **Ko-fi:** Sostieni direttamente su [ko-fi.com/manuelsnake](https://ko-fi.com/manuelsnake)
+  [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/manuelsnake)
+- **Pulsante Sponsor di GitHub:** Fai clic sul pulsante **Sponsor** (contrassegnato dall'icona a cuore `♥`) in alto nella pagina del [Repository GitHub](https://github.com/Manuelsnake/MTG-SCANNER-COLLECTION), che rimanda direttamente alla pagina Ko-fi dello sviluppatore.
+
+Il vostro supporto volontario contribuisce direttamente a sostenere il tempo dedicato allo sviluppo, l'acquisizione di hardware di test (scanner piani, webcam e dispositivi di acquisizione) e il miglioramento costante dell'applicazione. Grazie di cuore!
 
 ---
 

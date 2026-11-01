@@ -1,11 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AddManualCardInput,
+  AddScryfallCardInput,
   CollectionSummary,
   CreateLocationInput,
   DatabaseInfo,
+  ImageCacheStats,
   InventoryItemDetail,
   Location,
+  ScryfallCard,
+  ScryfallSearchResult,
 } from "../types";
 
 export const api = {
@@ -61,6 +65,10 @@ export const api = {
     return await invoke<InventoryItemDetail>("add_manual_card", { input });
   },
 
+  async addCardFromScryfall(input: AddScryfallCardInput): Promise<InventoryItemDetail> {
+    return await invoke<InventoryItemDetail>("add_card_from_scryfall", { input });
+  },
+
   async updateInventoryQuantity(
     id: string,
     deltaOrSet: number,
@@ -77,6 +85,10 @@ export const api = {
     await invoke("delete_inventory_item", { id });
   },
 
+  async healInventoryImages(): Promise<number> {
+    return await invoke<number>("heal_inventory_images");
+  },
+
   // Locations Commands
   async listLocations(): Promise<Location[]> {
     return await invoke<Location[]>("list_locations");
@@ -88,5 +100,55 @@ export const api = {
 
   async deleteLocation(id: string): Promise<void> {
     await invoke("delete_location", { id });
+  },
+
+  // Scryfall Commands
+  async scryfallAutocomplete(query: string): Promise<string[]> {
+    return await invoke<string[]>("scryfall_autocomplete", { query });
+  },
+
+  async scryfallSearch(query: string, page = 1, lang?: string | null): Promise<ScryfallSearchResult[]> {
+    return await invoke<ScryfallSearchResult[]>("scryfall_search", {
+      query,
+      page,
+      lang: lang && lang !== "any" ? lang : null,
+    });
+  },
+
+  async scryfallGetPrintings(oracleId: string): Promise<ScryfallSearchResult[]> {
+    return await invoke<ScryfallSearchResult[]>("scryfall_get_printings", { oracleId });
+  },
+
+  async scryfallGetPrintingsByName(cardName: string): Promise<ScryfallSearchResult[]> {
+    return await invoke<ScryfallSearchResult[]>("scryfall_get_printings_by_name", { cardName });
+  },
+
+  async scryfallGetCard(setCode: string, collectorNumber: string, lang?: string | null): Promise<ScryfallCard> {
+    return await invoke<ScryfallCard>("scryfall_get_card", {
+      setCode,
+      collectorNumber,
+      lang: lang && lang !== "any" ? lang : null,
+    });
+  },
+
+  // Image Cache Commands
+  async getCardImage(
+    scryfallId: string,
+    remoteUrl?: string | null,
+    size?: string | null
+  ): Promise<string | null> {
+    return await invoke<string | null>("get_card_image", {
+      scryfallId,
+      remoteUrl: remoteUrl || null,
+      size: size || null,
+    });
+  },
+
+  async clearCardImageCache(): Promise<number> {
+    return await invoke<number>("clear_card_image_cache");
+  },
+
+  async getCardImageCacheStats(): Promise<ImageCacheStats> {
+    return await invoke<ImageCacheStats>("get_card_image_cache_stats");
   },
 };
