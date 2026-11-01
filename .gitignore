@@ -71,6 +71,14 @@ temp/
 debug/
 captures/
 *.tmp
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tiff
+*.webp
+!docs/assets/**
+!assets/**
 debug_capture.png
 *.log
 
