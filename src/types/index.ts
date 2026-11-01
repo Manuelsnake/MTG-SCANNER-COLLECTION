@@ -32,6 +32,11 @@ export interface InventoryItemDetail {
   rarity?: string | null;
   mana_cost?: string | null;
   image_url?: string | null;
+  image_small?: string | null;
+  image_art_crop?: string | null;
+  local_image_path?: string | null;
+  image_status?: string | null;
+  card_faces?: string | null;
   quantity: number;
   language: string;
   finish: string;
@@ -77,6 +82,10 @@ export interface ScryfallSearchResult {
   image_url: string | null;
   image_small: string | null;
   image_art_crop: string | null;
+  card_faces?: string | null;
+  is_paper?: boolean;
+  digital?: boolean;
+  artist?: string | null;
   finishes: string[];
   price_eur: number | null; // Cents
   price_eur_foil: number | null; // Cents
@@ -117,6 +126,9 @@ export interface AddScryfallCardInput {
   mana_cost?: string | null;
   type_line?: string | null;
   image_url?: string | null;
+  image_small?: string | null;
+  image_art_crop?: string | null;
+  card_faces?: string | null;
   quantity: number;
   language: string;
   finish: string;
@@ -126,6 +138,12 @@ export interface AddScryfallCardInput {
   location_id?: string | null;
   notes?: string | null;
   collection_ids: string[];
+}
+
+export interface ImageCacheStats {
+  total_images: number;
+  total_bytes: number;
+  cache_dir: string;
 }
 
 export interface Location {

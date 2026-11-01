@@ -173,18 +173,64 @@ impl<T: ScryfallTransport> ScryfallClient<T> {
         Ok(list)
     }
 
-    /// Retrieve all printings of a card given its oracle_id
+    /// Retrieve all printings of a card given its oracle_id, supporting pagination
     pub async fn get_printings(&self, oracle_id: &str) -> AppResult<Vec<ScryfallCard>> {
-        let encoded = urlencoding::encode(oracle_id.trim());
-        let url = format!(
+        let trimmed = oracle_id.trim();
+        let encoded = urlencoding::encode(trimmed);
+        let mut next_url = Some(format!(
             "{BASE_URL}/cards/search?q=oracle_id%3A{encoded}&unique=prints&order=released&dir=desc"
-        );
+        ));
 
-        let raw = self.transport.get(&url).await?;
-        let list: ScryfallList<ScryfallCard> = serde_json::from_str(&raw)
-            .map_err(|e| AppError::Scryfall(format!("Failed to parse printings response: {e}")))?;
+        let mut all_printings = Vec::new();
+        let mut pages = 0;
 
-        Ok(list.data)
+        while let Some(url) = next_url {
+            let raw = self.transport.get(&url).await?;
+            let list: ScryfallList<ScryfallCard> = serde_json::from_str(&raw).map_err(|e| {
+                AppError::Scryfall(format!("Failed to parse printings response: {e}"))
+            })?;
+
+            all_printings.extend(list.data);
+            pages += 1;
+
+            if list.has_more && pages < 10 {
+                next_url = list.next_page;
+            } else {
+                next_url = None;
+            }
+        }
+
+        Ok(all_printings)
+    }
+
+    /// Retrieve printings directly from a Scryfall search query with pagination
+    pub async fn get_printings_by_query(&self, query: &str) -> AppResult<Vec<ScryfallCard>> {
+        let trimmed = query.trim();
+        let encoded = urlencoding::encode(trimmed);
+        let mut next_url = Some(format!(
+            "{BASE_URL}/cards/search?q={encoded}&unique=prints&order=released&dir=desc"
+        ));
+
+        let mut all_printings = Vec::new();
+        let mut pages = 0;
+
+        while let Some(url) = next_url {
+            let raw = self.transport.get(&url).await?;
+            let list: ScryfallList<ScryfallCard> = serde_json::from_str(&raw).map_err(|e| {
+                AppError::Scryfall(format!("Failed to parse printings query response: {e}"))
+            })?;
+
+            all_printings.extend(list.data);
+            pages += 1;
+
+            if list.has_more && pages < 10 {
+                next_url = list.next_page;
+            } else {
+                next_url = None;
+            }
+        }
+
+        Ok(all_printings)
     }
 
     /// Retrieve exact card printing by set code and collector number

@@ -169,7 +169,7 @@ async fn test_card_identification_service_with_mock_and_caching() {
     );
     transport.register("/cards/lea/232", sample_lotus_json());
     transport.register(
-        "/cards/search?order=released&q=oracle_id%3Ab34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6&unique=prints",
+        "/cards/search?q=oracle_id%3Ab34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6&unique=prints&order=released&dir=desc",
         &format!(r#"{{"object":"list","total_cards":1,"has_more":false,"data":[{}]}}"#, sample_lotus_json()),
     );
 
@@ -210,14 +210,22 @@ async fn test_card_identification_service_with_mock_and_caching() {
     assert_eq!(card.name, "Black Lotus");
     assert_eq!(transport.calls(), 2); // Still 2, served completely from cache!
 
-    // 5. Get printings by oracle_id - LEA is already cached!
+    // 5. Get printings by oracle_id - first call fetches all printings from Scryfall and marks synced
     let printings = service
         .get_printings("b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6")
         .await
         .expect("Printings");
     assert_eq!(printings.len(), 1);
     assert_eq!(printings[0].set_code, "LEA");
-    assert_eq!(transport.calls(), 2); // Served from cache!
+    assert_eq!(transport.calls(), 3); // 1 autocomplete + 1 search + 1 printings fetch
+
+    // 6. Second call to get_printings must be served directly from cache (oracle synced)
+    let printings_cached = service
+        .get_printings("b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6")
+        .await
+        .expect("Printings cached");
+    assert_eq!(printings_cached.len(), 1);
+    assert_eq!(transport.calls(), 3); // No additional network call!
 }
 
 #[tokio::test]
@@ -276,6 +284,15 @@ fn test_add_card_from_scryfall_with_deduplication_and_inventory() {
             "https://cards.scryfall.io/normal/front/1/9/1920dae4-fb92-4f19-ae4b-eb3276b8dac7.jpg"
                 .to_string(),
         ),
+        image_small: Some(
+            "https://cards.scryfall.io/small/front/1/9/1920dae4-fb92-4f19-ae4b-eb3276b8dac7.jpg"
+                .to_string(),
+        ),
+        image_art_crop: Some(
+            "https://cards.scryfall.io/art_crop/front/1/9/1920dae4-fb92-4f19-ae4b-eb3276b8dac7.jpg"
+                .to_string(),
+        ),
+        card_faces: None,
         quantity: 2,
         language: "en".to_string(),
         finish: "nonfoil".to_string(),
@@ -315,6 +332,9 @@ fn test_add_card_from_scryfall_with_deduplication_and_inventory() {
         mana_cost: Some("{U}{U}".to_string()),
         type_line: Some("Instant".to_string()),
         image_url: None,
+        image_small: None,
+        image_art_crop: None,
+        card_faces: None,
         quantity: 1,
         language: "en".to_string(),
         finish: "nonfoil".to_string(),
@@ -346,6 +366,9 @@ fn test_add_card_from_scryfall_with_deduplication_and_inventory() {
         mana_cost: Some("{U}{U}".to_string()),
         type_line: Some("Instant".to_string()),
         image_url: None,
+        image_small: None,
+        image_art_crop: None,
+        card_faces: None,
         quantity: 1,
         language: "en".to_string(),
         finish: "foil".to_string(),

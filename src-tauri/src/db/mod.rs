@@ -452,6 +452,11 @@ impl Database {
             rarity: None,
             mana_cost: None,
             image_url: None,
+            image_small: None,
+            image_art_crop: None,
+            local_image_path: None,
+            image_status: Some("manual".to_string()),
+            card_faces: None,
             quantity: input.quantity,
             language: input.language.trim().to_lowercase(),
             finish: input.finish.trim().to_lowercase(),
@@ -530,38 +535,45 @@ impl Database {
 
         // 2. Resolve or create printing
         let printing_id: String = {
-            let existing: Option<(String, Option<String>)> = tx
+            let existing: Option<String> = tx
                 .query_row(
-                    "SELECT id, image_url FROM printings WHERE set_code = ?1 AND collector_number = ?2",
+                    "SELECT id FROM printings WHERE set_code = ?1 AND collector_number = ?2",
                     params![set_code, collector_number],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
+                    |row| row.get(0),
                 )
                 .optional()?;
 
-            if let Some((id, existing_img)) = existing {
-                if existing_img.is_none() && input.image_url.is_some() {
-                    tx.execute(
-                        r#"
-                        UPDATE printings 
-                        SET scryfall_id = COALESCE(scryfall_id, ?1),
-                            rarity = COALESCE(rarity, ?2),
-                            mana_cost = COALESCE(mana_cost, ?3),
-                            type_line = COALESCE(type_line, ?4),
-                            image_url = COALESCE(image_url, ?5),
-                            updated_at = ?6
-                        WHERE id = ?7
-                        "#,
-                        params![
-                            input.scryfall_id,
-                            input.rarity,
-                            input.mana_cost,
-                            input.type_line,
-                            input.image_url,
-                            now,
-                            id
-                        ],
-                    )?;
-                }
+            if let Some(id) = existing {
+                tx.execute(
+                    r#"
+                    UPDATE printings 
+                    SET scryfall_id = ?1,
+                        set_name = ?2,
+                        rarity = COALESCE(?3, rarity),
+                        mana_cost = COALESCE(?4, mana_cost),
+                        type_line = COALESCE(?5, type_line),
+                        image_url = COALESCE(?6, image_url),
+                        image_small = COALESCE(?7, image_small),
+                        image_art_crop = COALESCE(?8, image_art_crop),
+                        card_faces = COALESCE(?9, card_faces),
+                        image_status = 'available',
+                        updated_at = ?10
+                    WHERE id = ?11
+                    "#,
+                    params![
+                        input.scryfall_id,
+                        set_name,
+                        input.rarity,
+                        input.mana_cost,
+                        input.type_line,
+                        input.image_url,
+                        input.image_small,
+                        input.image_art_crop,
+                        input.card_faces,
+                        now,
+                        id
+                    ],
+                )?;
                 id
             } else {
                 let new_id = Uuid::new_v4().to_string();
@@ -569,8 +581,8 @@ impl Database {
                 tx.execute(
                     r#"
                     INSERT INTO printings 
-                    (id, card_id, scryfall_id, set_code, collector_number, set_name, release_date, layout, rarity, mana_cost, type_line, image_url, created_at, updated_at) 
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                    (id, card_id, scryfall_id, set_code, collector_number, set_name, release_date, layout, rarity, mana_cost, type_line, image_url, image_small, image_art_crop, card_faces, image_status, created_at, updated_at) 
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 'available', ?16, ?17)
                     "#,
                     params![
                         new_id,
@@ -585,6 +597,9 @@ impl Database {
                         input.mana_cost,
                         input.type_line,
                         input.image_url,
+                        input.image_small,
+                        input.image_art_crop,
+                        input.card_faces,
                         now,
                         now
                     ],
@@ -697,6 +712,11 @@ impl Database {
             rarity: input.rarity,
             mana_cost: input.mana_cost,
             image_url: input.image_url,
+            image_small: input.image_small,
+            image_art_crop: input.image_art_crop,
+            local_image_path: None,
+            image_status: Some("available".to_string()),
+            card_faces: input.card_faces,
             quantity: final_quantity,
             language: lang,
             finish,
@@ -723,8 +743,17 @@ impl Database {
         let mut query = String::from(
             r#"
             SELECT 
-                inv.id, inv.printing_id, p.card_id, p.scryfall_id, c.name as card_name,
-                p.set_code, p.collector_number, p.set_name, p.rarity, p.mana_cost, p.image_url,
+                inv.id, inv.printing_id, p.card_id, 
+                COALESCE(p.scryfall_id, sc.scryfall_id) as scryfall_id, 
+                c.name as card_name,
+                p.set_code, p.collector_number, p.set_name, 
+                COALESCE(p.rarity, sc.rarity) as rarity, 
+                COALESCE(p.mana_cost, sc.mana_cost) as mana_cost, 
+                COALESCE(p.image_url, sc.image_normal, sc.image_small) as image_url,
+                COALESCE(p.image_small, sc.image_small, sc.image_normal) as image_small,
+                COALESCE(p.image_art_crop, sc.image_art_crop) as image_art_crop,
+                p.card_faces,
+                p.image_status,
                 inv.quantity, inv.language, inv.finish, inv.condition,
                 inv.acquisition_date, inv.purchase_price, inv.currency,
                 inv.location_id, loc.name as location_name, inv.notes,
@@ -734,6 +763,7 @@ impl Database {
             JOIN printings p ON inv.printing_id = p.id
             JOIN cards c ON p.card_id = c.id
             LEFT JOIN locations loc ON inv.location_id = loc.id
+            LEFT JOIN scryfall_cache sc ON (p.scryfall_id = sc.scryfall_id OR (LOWER(p.set_code) = LOWER(sc.set_code) AND LOWER(p.collector_number) = LOWER(sc.collector_number)))
             WHERE 1=1
             "#,
         );
@@ -768,7 +798,7 @@ impl Database {
 
         let items = stmt
             .query_map(params_slice.as_slice(), |row| {
-                let col_ids_str: Option<String> = row.get(23)?;
+                let col_ids_str: Option<String> = row.get(27)?;
                 let collection_ids = col_ids_str
                     .map(|s| s.split(',').map(|id| id.to_string()).collect())
                     .unwrap_or_default();
@@ -785,18 +815,23 @@ impl Database {
                     rarity: row.get(8)?,
                     mana_cost: row.get(9)?,
                     image_url: row.get(10)?,
-                    quantity: row.get(11)?,
-                    language: row.get(12)?,
-                    finish: row.get(13)?,
-                    condition: row.get(14)?,
-                    acquisition_date: row.get(15)?,
-                    purchase_price: row.get(16)?,
-                    currency: row.get(17)?,
-                    location_id: row.get(18)?,
-                    location_name: row.get(19)?,
-                    notes: row.get(20)?,
-                    created_at: row.get(21)?,
-                    updated_at: row.get(22)?,
+                    image_small: row.get(11)?,
+                    image_art_crop: row.get(12)?,
+                    card_faces: row.get(13)?,
+                    image_status: row.get(14)?,
+                    local_image_path: None,
+                    quantity: row.get(15)?,
+                    language: row.get(16)?,
+                    finish: row.get(17)?,
+                    condition: row.get(18)?,
+                    acquisition_date: row.get(19)?,
+                    purchase_price: row.get(20)?,
+                    currency: row.get(21)?,
+                    location_id: row.get(22)?,
+                    location_name: row.get(23)?,
+                    notes: row.get(24)?,
+                    created_at: row.get(25)?,
+                    updated_at: row.get(26)?,
                     collection_ids,
                 })
             })?

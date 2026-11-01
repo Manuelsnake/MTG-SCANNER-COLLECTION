@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, Transaction};
 
 use crate::db::schema::{
     CREATE_MIGRATIONS_TABLE, MIGRATION_001_INITIAL_SCHEMA, MIGRATION_002_SCRYFALL_CACHE,
+    MIGRATION_003_IMAGE_METADATA_AND_SYNC,
 };
 use crate::error::{AppError, AppResult};
 
@@ -23,6 +24,11 @@ pub const ALL_MIGRATIONS: &[Migration] = &[
         version: 2,
         name: "002_scryfall_cache",
         sql: MIGRATION_002_SCRYFALL_CACHE,
+    },
+    Migration {
+        version: 3,
+        name: "003_image_metadata_and_sync",
+        sql: MIGRATION_003_IMAGE_METADATA_AND_SYNC,
     },
 ];
 

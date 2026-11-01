@@ -5,6 +5,7 @@ import type {
   CollectionSummary,
   CreateLocationInput,
   DatabaseInfo,
+  ImageCacheStats,
   InventoryItemDetail,
   Location,
   ScryfallCard,
@@ -110,10 +111,35 @@ export const api = {
     return await invoke<ScryfallSearchResult[]>("scryfall_get_printings", { oracleId });
   },
 
+  async scryfallGetPrintingsByName(cardName: string): Promise<ScryfallSearchResult[]> {
+    return await invoke<ScryfallSearchResult[]>("scryfall_get_printings_by_name", { cardName });
+  },
+
   async scryfallGetCard(setCode: string, collectorNumber: string): Promise<ScryfallCard> {
     return await invoke<ScryfallCard>("scryfall_get_card", {
       setCode,
       collectorNumber,
     });
+  },
+
+  // Image Cache Commands
+  async getCardImage(
+    scryfallId: string,
+    remoteUrl?: string | null,
+    size?: string | null
+  ): Promise<string | null> {
+    return await invoke<string | null>("get_card_image", {
+      scryfallId,
+      remoteUrl: remoteUrl || null,
+      size: size || null,
+    });
+  },
+
+  async clearCardImageCache(): Promise<number> {
+    return await invoke<number>("clear_card_image_cache");
+  },
+
+  async getCardImageCacheStats(): Promise<ImageCacheStats> {
+    return await invoke<ImageCacheStats>("get_card_image_cache_stats");
   },
 };

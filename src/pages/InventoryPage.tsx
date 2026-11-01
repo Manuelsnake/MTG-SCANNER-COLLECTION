@@ -1,15 +1,21 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   FolderPlus,
-  Image as ImageIcon,
+  Grid,
   Layers,
+  LayoutGrid,
+  List,
+  Maximize2,
   Minus,
   Plus,
   Search,
+  Sparkles,
   Tag,
   Trash2,
 } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { CardImage } from "../components/CardImage";
+import { CardZoomModal } from "../components/CardZoomModal";
 import type {
   AddManualCardInput,
   CollectionSummary,
@@ -46,6 +52,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
 }) => {
   const [search, setSearch] = useState("");
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "compact" | "list">("grid");
+  const [zoomItem, setZoomItem] = useState<InventoryItemDetail | null>(null);
   const [assigningItem, setAssigningItem] = useState<InventoryItemDetail | null>(null);
 
   // Form state for manual card adding
@@ -126,23 +134,118 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
   };
 
   // Filter inventory items
-  const filteredItems = inventory.filter((item) => {
-    const matchesSearch =
-      search.trim() === "" ||
-      item.card_name.toLowerCase().includes(search.toLowerCase()) ||
-      item.set_code.toLowerCase().includes(search.toLowerCase()) ||
-      item.collector_number.toLowerCase().includes(search.toLowerCase());
+  const filteredItems = useMemo(() => {
+    return inventory.filter((item) => {
+      const q = search.toLowerCase().trim();
+      const matchesSearch =
+        q === "" ||
+        item.card_name.toLowerCase().includes(q) ||
+        item.set_code.toLowerCase().includes(q) ||
+        item.collector_number.toLowerCase().includes(q) ||
+        (item.location_name && item.location_name.toLowerCase().includes(q)) ||
+        (item.notes && item.notes.toLowerCase().includes(q));
 
-    const matchesCollection =
-      selectedCollectionId === "all" ||
-      item.collection_ids.includes(selectedCollectionId);
+      const matchesCollection =
+        selectedCollectionId === "all" ||
+        item.collection_ids.includes(selectedCollectionId);
 
-    return matchesSearch && matchesCollection;
-  });
+      return matchesSearch && matchesCollection;
+    });
+  }, [inventory, search, selectedCollectionId]);
+
+  // Aggregate statistics
+  const totalPhysicalCopies = useMemo(
+    () => filteredItems.reduce((acc, item) => acc + item.quantity, 0),
+    [filteredItems]
+  );
+
+  const totalValueCents = useMemo(
+    () =>
+      filteredItems.reduce(
+        (acc, item) => acc + (item.purchase_price ? item.purchase_price * item.quantity : 0),
+        0
+      ),
+    [filteredItems]
+  );
+
+  const formatPrice = (cents: number | null) => {
+    if (cents == null) return "—";
+    return `€${(cents / 100).toFixed(2)}`;
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Top Controls */}
+    <div className="space-y-5">
+      {/* Summary Header & Stats */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-md">
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">
+              Unique Cards
+            </span>
+            <span className="text-xl font-bold text-slate-100">{filteredItems.length}</span>
+          </div>
+
+          <div className="border-l border-slate-800 pl-6">
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">
+              Total Copies
+            </span>
+            <span className="text-xl font-bold text-indigo-400">{totalPhysicalCopies}</span>
+          </div>
+
+          <div className="border-l border-slate-800 pl-6">
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">
+              Collection Value
+            </span>
+            <span className="text-xl font-bold text-emerald-400 font-mono">
+              €{(totalValueCents / 100).toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        {/* View Mode Switcher */}
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all ${
+              viewMode === "grid"
+                ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-850"
+            }`}
+            title="Card Grid View"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span className="hidden sm:inline">Grid</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode("compact")}
+            className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all ${
+              viewMode === "compact"
+                ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-850"
+            }`}
+            title="Compact Grid View"
+          >
+            <Grid className="w-4 h-4" />
+            <span className="hidden sm:inline">Compact</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode("list")}
+            className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all ${
+              viewMode === "list"
+                ? "bg-indigo-600 text-white shadow-xs font-semibold"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-850"
+            }`}
+            title="Detailed Table View"
+          >
+            <List className="w-4 h-4" />
+            <span className="hidden sm:inline">List</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Top Controls: Search, Collection Filter & Action Buttons */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="flex flex-1 items-center gap-3 max-w-xl">
           <div className="relative flex-1">
@@ -152,7 +255,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               placeholder="Search by card name, set code, collector #..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700/80 rounded-lg text-sm text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700/80 rounded-lg text-sm text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-inner"
             />
           </div>
 
@@ -173,7 +276,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenScryfallModal}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all shadow-md shadow-indigo-600/20"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all shadow-md shadow-indigo-600/20"
           >
             <Search className="w-4 h-4" />
             <span>Search via Scryfall</span>
@@ -189,19 +292,188 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
         </div>
       </div>
 
-      {/* Inventory Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xs">
-        {filteredItems.length === 0 ? (
-          <div className="py-12 text-center">
-            <Layers className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-            <p className="text-slate-300 font-medium">No inventory items found</p>
-            <p className="text-xs text-slate-400 mt-1">
-              {inventory.length === 0
-                ? "Your collection is empty. Search Scryfall to add your first card."
-                : "No cards match the active search or collection filter."}
-            </p>
-          </div>
-        ) : (
+      {/* Main View Area */}
+      {filteredItems.length === 0 ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl py-16 text-center shadow-xs">
+          <Layers className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+          <p className="text-slate-200 font-bold text-base">No inventory cards found</p>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+            {inventory.length === 0
+              ? "Your inventory is currently empty. Click 'Search via Scryfall' above to search and catalog your cards."
+              : "No cards match your current search query or collection filter."}
+          </p>
+        </div>
+      ) : viewMode === "grid" ? (
+        /* 1. GRID VIEW (Card Art Featured) */
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              className="group bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl overflow-hidden shadow-md transition-all flex flex-col justify-between"
+            >
+              {/* Card Image Container with Zoom Trigger */}
+              <div
+                className="relative aspect-[2.5/3.5] bg-slate-950 overflow-hidden cursor-pointer"
+                onClick={() => setZoomItem(item)}
+                title="Click to zoom card"
+              >
+                <CardImage
+                  scryfallId={item.scryfall_id}
+                  remoteUrl={item.image_url}
+                  alt={item.card_name}
+                  size="normal"
+                  className="w-full h-full group-hover:scale-105 transition-transform duration-300"
+                />
+
+                {/* Foil Shimmer Badge */}
+                {item.finish === "foil" && (
+                  <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-amber-500/90 text-black text-[9px] font-extrabold uppercase tracking-wider flex items-center gap-1 shadow-md">
+                    <Sparkles className="w-2.5 h-2.5" /> FOIL
+                  </div>
+                )}
+                {item.finish === "etched" && (
+                  <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-purple-600/90 text-white text-[9px] font-extrabold uppercase tracking-wider shadow-md">
+                    ETCHED
+                  </div>
+                )}
+
+                {/* Condition Badge */}
+                <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-[9px] font-bold text-emerald-400 border border-emerald-500/30">
+                  {item.condition}
+                </div>
+
+                {/* Hover Zoom Icon */}
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <div className="p-2 rounded-full bg-black/70 text-white shadow-lg">
+                    <Maximize2 className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Details & Controls */}
+              <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
+                <div>
+                  <div className="flex items-start justify-between gap-1">
+                    <h4
+                      className="font-bold text-slate-100 text-xs truncate leading-tight cursor-pointer hover:text-indigo-400 transition-colors"
+                      onClick={() => setZoomItem(item)}
+                      title={item.card_name}
+                    >
+                      {item.card_name}
+                    </h4>
+                    {item.mana_cost && (
+                      <span className="font-mono text-[10px] text-indigo-300 font-semibold shrink-0">
+                        {item.mana_cost}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                    <span className="font-mono font-bold text-indigo-400 uppercase">
+                      {item.set_code}
+                    </span>{" "}
+                    #{item.collector_number} • {item.set_name}
+                  </p>
+
+                  <div className="flex items-center justify-between text-[11px] mt-1 text-slate-400">
+                    <span className="uppercase font-mono text-[10px]">{item.language}</span>
+                    <span className="font-bold text-slate-200 font-mono">
+                      {formatPrice(item.purchase_price)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quantity Controls & Action Bar */}
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <div className="inline-flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
+                    <button
+                      onClick={() => onUpdateQuantity(item.id, -1)}
+                      disabled={item.quantity <= 0}
+                      className="text-slate-400 hover:text-rose-400 disabled:opacity-30 transition-colors p-0.5"
+                      title="Decrease quantity"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="font-bold text-xs text-slate-100 min-w-4 text-center">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => onUpdateQuantity(item.id, 1)}
+                      className="text-slate-400 hover:text-emerald-400 transition-colors p-0.5"
+                      title="Increase quantity"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setAssigningItem(item)}
+                      className="p-1 text-slate-400 hover:text-cyan-400 rounded transition-colors"
+                      title="Manage collections"
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteItem(item.id)}
+                      className="p-1 text-slate-400 hover:text-rose-400 rounded transition-colors"
+                      title="Delete card"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : viewMode === "compact" ? (
+        /* 2. COMPACT GRID VIEW */
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2.5">
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              className="group bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg overflow-hidden shadow-xs flex flex-col justify-between"
+            >
+              <div
+                className="relative aspect-[2.5/3.5] bg-slate-950 overflow-hidden cursor-pointer"
+                onClick={() => setZoomItem(item)}
+                title="Click to zoom card"
+              >
+                <CardImage
+                  scryfallId={item.scryfall_id}
+                  remoteUrl={item.image_url}
+                  alt={item.card_name}
+                  size="small"
+                  className="w-full h-full group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute top-1 right-1 px-1.5 py-0.2 rounded bg-black/85 text-[10px] font-bold text-indigo-300 border border-slate-700">
+                  x{item.quantity}
+                </div>
+                {item.finish === "foil" && (
+                  <div className="absolute top-1 left-1 w-2.5 h-2.5 rounded-full bg-amber-400 shadow-md ring-1 ring-white/50" title="Foil" />
+                )}
+              </div>
+
+              <div className="p-2 text-[11px]">
+                <p
+                  className="font-bold text-slate-100 truncate cursor-pointer hover:text-indigo-400"
+                  onClick={() => setZoomItem(item)}
+                  title={item.card_name}
+                >
+                  {item.card_name}
+                </p>
+                <div className="flex items-center justify-between text-slate-400 text-[10px] mt-0.5">
+                  <span className="font-mono text-indigo-400 uppercase">{item.set_code}</span>
+                  <span className="font-mono text-slate-300">{formatPrice(item.purchase_price)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* 3. LIST VIEW (Detailed Table) */
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-800/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-700/80">
@@ -222,24 +494,30 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-11 bg-slate-800 rounded overflow-hidden shrink-0 border border-slate-700/60 flex items-center justify-center">
-                          {item.image_url ? (
-                            <img
-                              src={item.image_url}
-                              alt={item.card_name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <ImageIcon className="w-3.5 h-3.5 text-slate-600" />
-                          )}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-14 bg-slate-800 rounded-md overflow-hidden shrink-0 border border-slate-700/60 shadow-xs cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all"
+                          onClick={() => setZoomItem(item)}
+                          title="Click to zoom card image"
+                        >
+                          <CardImage
+                            scryfallId={item.scryfall_id}
+                            remoteUrl={item.image_url}
+                            alt={item.card_name}
+                            size="small"
+                            className="w-full h-full"
+                          />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-slate-100">{item.card_name}</span>
+                            <span
+                              className="font-bold text-slate-100 cursor-pointer hover:text-indigo-400 transition-colors"
+                              onClick={() => setZoomItem(item)}
+                            >
+                              {item.card_name}
+                            </span>
                             {item.mana_cost && (
-                              <span className="text-[10px] font-mono text-indigo-400 shrink-0">
+                              <span className="text-[10px] font-mono text-indigo-400 shrink-0 font-bold">
                                 {item.mana_cost}
                               </span>
                             )}
@@ -261,7 +539,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
                     </td>
 
                     <td className="px-4 py-3 text-slate-400">
-                      <span className="font-mono text-indigo-400 uppercase font-medium">
+                      <span className="font-mono text-indigo-400 uppercase font-bold">
                         {item.set_code}
                       </span>{" "}
                       #{item.collector_number}
@@ -381,8 +659,15 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Card Zoom Modal */}
+      <CardZoomModal
+        item={zoomItem}
+        collections={collections}
+        onClose={() => setZoomItem(null)}
+      />
 
       {/* Add Card Manually Modal */}
       <Modal

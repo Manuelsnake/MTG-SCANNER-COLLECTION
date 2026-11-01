@@ -70,29 +70,78 @@ impl<T: ScryfallTransport> CardIdentificationService<T> {
     /// Retrieve all printings/editions of a specific card (given oracle_id)
     pub async fn get_printings(&self, oracle_id: &str) -> AppResult<Vec<ScryfallSearchResult>> {
         let trimmed = oracle_id.trim();
+        if trimmed.is_empty() {
+            return Ok(vec![]);
+        }
 
-        // 1. Check local cache
+        // 1. Check if the full set of printings was already synchronized into SQLite
         {
             let conn = self.db_conn.lock().unwrap();
-            let cached_printings = ScryfallCache::get_printings_by_oracle_id(&conn, trimmed)?;
-            if !cached_printings.is_empty() {
-                return Ok(cached_printings
-                    .iter()
-                    .map(|c| c.to_search_result())
-                    .collect());
+            let is_synced = ScryfallCache::is_oracle_synced(&conn, trimmed)?;
+            if is_synced {
+                let cached_printings = ScryfallCache::get_printings_by_oracle_id(&conn, trimmed)?;
+                if !cached_printings.is_empty() {
+                    let mut results: Vec<ScryfallSearchResult> = cached_printings
+                        .iter()
+                        .map(|c| c.to_search_result())
+                        .collect();
+                    // Prioritize paper printings, then sort by release date descending
+                    results.sort_by(|a, b| {
+                        b.is_paper
+                            .cmp(&a.is_paper)
+                            .then_with(|| b.released_at.cmp(&a.released_at))
+                    });
+                    return Ok(results);
+                }
             }
         }
 
-        // 2. Fetch from Scryfall API
+        // 2. Fetch complete paginated printings from Scryfall API
         let printings = self.client.get_printings(trimmed).await?;
 
-        // 3. Save to cache
+        // 3. Save to cache and record oracle synchronization
+        if !printings.is_empty() {
+            let mut conn = self.db_conn.lock().unwrap();
+            let _ = ScryfallCache::save_cards_batch(&mut conn, &printings, DEFAULT_CACHE_TTL_DAYS);
+            let _ = ScryfallCache::mark_oracle_synced(&conn, trimmed, printings.len());
+        }
+
+        let mut results: Vec<ScryfallSearchResult> =
+            printings.iter().map(|c| c.to_search_result()).collect();
+        results.sort_by(|a, b| {
+            b.is_paper
+                .cmp(&a.is_paper)
+                .then_with(|| b.released_at.cmp(&a.released_at))
+        });
+        Ok(results)
+    }
+
+    /// Retrieve printings when oracle_id is unavailable, searching by card name
+    pub async fn get_printings_by_name(
+        &self,
+        card_name: &str,
+    ) -> AppResult<Vec<ScryfallSearchResult>> {
+        let trimmed = card_name.trim();
+        if trimmed.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let query = format!("!\"{}\"", trimmed);
+        let printings = self.client.get_printings_by_query(&query).await?;
+
         if !printings.is_empty() {
             let mut conn = self.db_conn.lock().unwrap();
             let _ = ScryfallCache::save_cards_batch(&mut conn, &printings, DEFAULT_CACHE_TTL_DAYS);
         }
 
-        Ok(printings.iter().map(|c| c.to_search_result()).collect())
+        let mut results: Vec<ScryfallSearchResult> =
+            printings.iter().map(|c| c.to_search_result()).collect();
+        results.sort_by(|a, b| {
+            b.is_paper
+                .cmp(&a.is_paper)
+                .then_with(|| b.released_at.cmp(&a.released_at))
+        });
+        Ok(results)
     }
 
     /// Identify a specific card by set code and collector number (used by OCR, Webcam, Flatbed & Manual)

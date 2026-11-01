@@ -31,6 +31,14 @@ pub async fn scryfall_get_printings(
 }
 
 #[tauri::command]
+pub async fn scryfall_get_printings_by_name(
+    card_name: String,
+    service: State<'_, Arc<CardIdentificationService>>,
+) -> AppResult<Vec<ScryfallSearchResult>> {
+    service.get_printings_by_name(&card_name).await
+}
+
+#[tauri::command]
 pub async fn scryfall_get_card(
     set_code: String,
     collector_number: String,

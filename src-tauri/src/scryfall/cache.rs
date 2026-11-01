@@ -84,6 +84,35 @@ impl ScryfallCache {
         Ok(cards)
     }
 
+    /// Check if all printings for an oracle_id have been synchronized into cache
+    pub fn is_oracle_synced(conn: &Connection, oracle_id: &str) -> AppResult<bool> {
+        let exists: Option<String> = conn
+            .query_row(
+                "SELECT oracle_id FROM scryfall_oracle_sync WHERE oracle_id = ?1",
+                params![oracle_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok(exists.is_some())
+    }
+
+    /// Mark an oracle_id as fully synchronized with the complete set of printings
+    pub fn mark_oracle_synced(
+        conn: &Connection,
+        oracle_id: &str,
+        total_printings: usize,
+    ) -> AppResult<()> {
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            r#"
+            INSERT OR REPLACE INTO scryfall_oracle_sync (oracle_id, synced_at, total_printings)
+            VALUES (?1, ?2, ?3)
+            "#,
+            params![oracle_id, now, total_printings as i64],
+        )?;
+        Ok(())
+    }
+
     /// Search cached cards by normalized name
     pub fn search_by_name(conn: &Connection, query: &str) -> AppResult<Vec<ScryfallCard>> {
         let now = Utc::now().to_rfc3339();

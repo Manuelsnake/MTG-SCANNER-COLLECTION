@@ -135,3 +135,30 @@ ALTER TABLE printings ADD COLUMN type_line TEXT;
 ALTER TABLE printings ADD COLUMN image_url TEXT;
 ALTER TABLE printings ADD COLUMN price_eur INTEGER;
 "#;
+
+pub const MIGRATION_003_IMAGE_METADATA_AND_SYNC: &str = r#"
+-- Table for tracking synchronized oracle printing sets
+CREATE TABLE IF NOT EXISTS scryfall_oracle_sync (
+    oracle_id TEXT PRIMARY KEY,
+    synced_at TEXT NOT NULL,
+    total_printings INTEGER NOT NULL
+);
+
+-- Extend printings with full image metadata, face data and status
+ALTER TABLE printings ADD COLUMN image_small TEXT;
+ALTER TABLE printings ADD COLUMN image_art_crop TEXT;
+ALTER TABLE printings ADD COLUMN image_status TEXT DEFAULT 'available';
+ALTER TABLE printings ADD COLUMN card_faces TEXT;
+
+-- Table for tracking disk-cached card images
+CREATE TABLE IF NOT EXISTS local_image_cache (
+    scryfall_id TEXT NOT NULL,
+    image_size TEXT NOT NULL,
+    local_path TEXT NOT NULL,
+    file_size_bytes INTEGER NOT NULL,
+    cached_at TEXT NOT NULL,
+    PRIMARY KEY (scryfall_id, image_size)
+);
+
+CREATE INDEX IF NOT EXISTS idx_local_image_cache_id ON local_image_cache(scryfall_id);
+"#;

@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod error;
+pub mod image_cache;
 pub mod models;
 pub mod scryfall;
 
@@ -8,6 +9,7 @@ use std::sync::Arc;
 use tauri::Manager;
 
 use crate::db::Database;
+use crate::image_cache::ImageCacheManager;
 use crate::scryfall::CardIdentificationService;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -29,9 +31,11 @@ pub fn run() {
 
             let db_arc = Arc::new(db);
             let card_service = Arc::new(CardIdentificationService::new(db_arc.get_conn()));
+            let image_cache = Arc::new(ImageCacheManager::new(&app_data_dir));
 
             app.manage(db_arc);
             app.manage(card_service);
+            app.manage(image_cache);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -59,7 +63,12 @@ pub fn run() {
             crate::commands::scryfall_autocomplete,
             crate::commands::scryfall_search,
             crate::commands::scryfall_get_printings,
+            crate::commands::scryfall_get_printings_by_name,
             crate::commands::scryfall_get_card,
+            // Image Cache
+            crate::commands::get_card_image,
+            crate::commands::clear_card_image_cache,
+            crate::commands::get_card_image_cache_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

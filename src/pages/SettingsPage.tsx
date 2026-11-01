@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { CheckCircle2, Database, Info, RefreshCw, ShieldCheck } from "lucide-react";
-import type { DatabaseInfo } from "../types";
+import React, { useEffect, useState } from "react";
+import { CheckCircle2, Database, HardDrive, Info, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { api } from "../services/api";
+import type { DatabaseInfo, ImageCacheStats } from "../types";
 
 interface SettingsPageProps {
   dbInfo: DatabaseInfo | null;
@@ -15,6 +16,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 }) => {
   const [integrityResult, setIntegrityResult] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [cacheStats, setCacheStats] = useState<ImageCacheStats | null>(null);
+  const [isClearingCache, setIsClearingCache] = useState(false);
+  const [clearMessage, setClearMessage] = useState<string | null>(null);
+
+  const loadCacheStats = async () => {
+    try {
+      const stats = await api.getCardImageCacheStats();
+      setCacheStats(stats);
+    } catch {
+      // cache stats error
+    }
+  };
+
+  useEffect(() => {
+    loadCacheStats();
+  }, []);
+
+  const handleClearCache = async () => {
+    if (!window.confirm("Are you sure you want to clear the local image cache? Images will be re-downloaded on demand.")) {
+      return;
+    }
+    setIsClearingCache(true);
+    setClearMessage(null);
+    try {
+      const count = await api.clearCardImageCache();
+      setClearMessage(`Successfully purged ${count} cached card images.`);
+      await loadCacheStats();
+    } catch (err) {
+      setClearMessage(`Failed to clear cache: ${String(err)}`);
+    } finally {
+      setIsClearingCache(false);
+    }
+  };
 
   const handleVerify = async () => {
     setIsVerifying(true);
@@ -26,6 +60,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     } finally {
       setIsVerifying(false);
     }
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
 
   return (
@@ -140,6 +182,79 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         ) : (
           <div className="py-6 text-center text-slate-400 text-xs">
             Connecting to SQLite database...
+          </div>
+        )}
+      </div>
+
+      {/* Local Image Cache Card */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <HardDrive className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-100 text-sm">Local Card Image Cache</h3>
+              <p className="text-xs text-slate-400">
+                Offline thumbnail cache on disk (never stored in SQLite)
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={loadCacheStats}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh Stats</span>
+          </button>
+        </div>
+
+        {cacheStats ? (
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <span className="text-slate-400 block mb-1">Cached Card Images</span>
+                <span className="font-mono font-bold text-indigo-400 text-base">
+                  {cacheStats.total_images} files
+                </span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <span className="text-slate-400 block mb-1">Disk Space Used</span>
+                <span className="font-mono font-bold text-emerald-400 text-base">
+                  {formatBytes(cacheStats.total_bytes)}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <span className="text-slate-400 block mb-1">Cache Directory</span>
+                <span className="font-mono text-slate-300 break-all text-[11px]">
+                  {cacheStats.cache_dir}
+                </span>
+              </div>
+            </div>
+
+            {clearMessage && (
+              <p className="p-2.5 rounded bg-slate-950 border border-slate-800 text-emerald-400 font-mono text-xs">
+                {clearMessage}
+              </p>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleClearCache}
+                disabled={isClearingCache || cacheStats.total_images === 0}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/30 disabled:opacity-40 text-rose-300 text-xs font-medium transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isClearingCache ? "Clearing..." : "Purge Image Cache"}</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="py-4 text-center text-slate-400 text-xs">
+            Loading image cache diagnostics...
           </div>
         )}
       </div>
