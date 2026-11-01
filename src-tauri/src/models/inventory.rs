@@ -1,0 +1,58 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InventoryItem {
+    pub id: String,
+    pub printing_id: String,
+    pub quantity: i64,
+    pub language: String,
+    pub finish: String,
+    pub condition: String,
+    pub acquisition_date: Option<String>,
+    pub purchase_price: Option<i64>, // Integer minor units (e.g., cents: 150 = €1.50)
+    pub currency: String,
+    pub location_id: Option<String>,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InventoryItemDetail {
+    pub id: String,
+    pub printing_id: String,
+    pub card_id: String,
+    pub card_name: String,
+    pub set_code: String,
+    pub collector_number: String,
+    pub set_name: String,
+    pub quantity: i64,
+    pub language: String,
+    pub finish: String,
+    pub condition: String,
+    pub acquisition_date: Option<String>,
+    pub purchase_price: Option<i64>,
+    pub currency: String,
+    pub location_id: Option<String>,
+    pub location_name: Option<String>,
+    pub notes: Option<String>,
+    pub collection_ids: Vec<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AddManualCardInput {
+    pub card_name: String,
+    pub set_code: String,
+    pub collector_number: String,
+    pub set_name: String,
+    pub quantity: i64,
+    pub language: String,
+    pub finish: String,
+    pub condition: String,
+    pub purchase_price: Option<i64>,
+    pub currency: Option<String>,
+    pub location_id: Option<String>,
+    pub notes: Option<String>,
+}

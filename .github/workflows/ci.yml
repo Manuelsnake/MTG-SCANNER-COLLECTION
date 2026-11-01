@@ -1,4 +1,4 @@
-name: CI - Governance, Security & Documentation Checks
+name: CI - Governance, Security & Application Checks
 
 on:
   push:
@@ -31,8 +31,8 @@ jobs:
             '*.gguf' '*.bin' '*.safetensors' '*.onnx' \
             '*.db' '*.db-wal' '*.db-shm' '*.sqlite' '*.sqlite3' \
             '*.pfx' '*.p12' '*.key' '*.pem' '*.cert' \
-            '*.png' '*.jpg' '*.jpeg' '*.bmp' '*.tif' '*.tiff' '*.webp' '*.raw' '*.dng' \
-            ':!docs/assets/*' ':!assets/*')
+            '*.jpg' '*.jpeg' '*.bmp' '*.tif' '*.tiff' '*.webp' '*.raw' '*.dng' \
+            ':!docs/assets/*' ':!assets/*' ':!src-tauri/icons/*')
           if [ -n "$FORBIDDEN" ]; then
             echo "ERROR: The following forbidden binary, scan, or secret files are tracked in Git:"
             echo "$FORBIDDEN"
@@ -68,3 +68,62 @@ jobs:
             README.md README.it.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  frontend-checks:
+    name: Frontend TypeScript & Production Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        run: npx tsc --noEmit
+
+      - name: Frontend Build
+        run: npm run build
+
+  rust-checks-and-tests:
+    name: Rust Quality, Tests & Build (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust Stable Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            src-tauri/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Rust Code Formatting (rustfmt)
+        run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
+
+      - name: Rust Linter (clippy)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+      - name: Run Automated Database & Backend Tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml -- --nocapture
+
+      - name: Compile Desktop Binary (Cargo Build)
+        run: cargo build --manifest-path src-tauri/Cargo.toml

@@ -25,10 +25,16 @@
 - **Importazione da Cartelle e Watch Folder:** Monitoraggio reattivo pianificato di cartelle esterne con rilevamento atomico del completamento di scrittura, deduplicazione con hash SHA-256 e protezione assoluta degli originali in sola lettura.
 - **Segmentazione Automatica Multi-Carta:** Rilevamento, ritaglio e raddrizzamento in prospettiva pianificati per più carte scansionate insieme su un piano A4, normalizzandole alla risoluzione di $744 \times 1039$ pixel.
 
-### 2. Motore Ibrido di Riconoscimento Carte (Architettura Prevista)
+### 2. Motore Ibrido di Riconoscimento Carte & AI Locale Integrata (Architettura Prevista)
 
-- **Modelli AI di Visione Locali:** Obiettivo di esecuzione di modelli vision-language compatti direttamente sul dispositivo (Liquid AI LFM2.5-VL 450M, 1.6B, 3B o Qwen2.5-VL) tramite `llama.cpp` con accelerazione Vulkan (GPU AMD e NVIDIA), Metal (macOS) o fallback multi-core su CPU (OpenMP).
-- **Modalità Zero-AI / Solo OCR:** Modalità leggera pianificata al 100% senza scaricare alcun modello AI (target < 80 MB di RAM). Utilizzerà Tesseract OCR locale interfacciato direttamente con il database Scryfall.
+- **Gestore Integrato dei Modelli AI Locali:** Gestione dei modelli AI completamente interna all'applicazione. Gli utenti finali **non dovranno mai installare o configurare applicazioni esterne** come Ollama, LM Studio o servizi in background separati.
+  - *Diagnostica Hardware Automatica:* Rilevamento automatico di architettura/thread CPU, RAM di sistema, GPU (integrata/dedicata), VRAM disponibile (dove rilevabile), versione del sistema operativo e spazio di archiviazione libero.
+  - *Raccomandazioni Basate sull'Hardware:* Suggerimento graduato dei modelli in base all'hardware rilevato: *Leggero / Lightweight* (massima velocità, consumo minimo di risorse), *Bilanciato / Balanced* (equilibrio ottimale tra accuratezza e latenza), *Avanzato / Advanced* (massima precisione per sistemi performanti) e selezione manuale.
+  - *Catalogo Modelli Integrato:* Schede descrittive complete con nome e versione del modello, architettura, dimensione del download, fabbisogno stimato di memoria (RAM/VRAM), backend di inferenza supportati, requisiti hardware minimi, licenza d'uso ufficiale e sorgenti verificate di download.
+  - *Download Diretto nell'Applicazione:* Monitoraggio avanzamento in tempo reale, pausa, ripresa, annullamento, verifica integrità tramite hash SHA-256, controllo preliminare dello spazio su disco, aggiornamento, rimozione pulita dei modelli e cartella di memorizzazione personalizzabile.
+  - *Motore di Inferenza Integrato:* Caricamento ed esecuzione dei modelli gestiti direttamente tramite binding Rust di `llama.cpp` (`llama-cpp-2`) con fallback universale multi-thread su CPU (AVX2/OpenMP). L'accelerazione hardware (Vulkan per GPU AMD/NVIDIA, Metal per macOS) verrà abilitata solo dopo verifica empirica sull'hardware di destinazione. I pesi dei modelli non sono mai inclusi nell'installer standard dell'applicazione.
+- **Modelli AI di Visione Locali:** Esecuzione on-device di modelli compatti vision-language (Liquid AI LFM2.5-VL 450M, 1.6B, 3B o Qwen2.5-VL in formati GGUF verificati) per il riconoscimento rapido di carte Magic.
+- **Modalità Zero-AI / Solo OCR:** Modalità leggera pianificata al 100% senza scaricare alcun modello AI (target < 80 MB di RAM). Utilizzerà Tesseract OCR locale interfacciato direttamente con il database Scryfall per gli utenti che non desiderano scaricare modelli AI.
 - **Identificazione Scryfall & Bulk Data Offline:** Risoluzione pianificata di identità, edizioni specifiche, illustrazioni alternative, varianti di bordo e lingue tramite l'API di Scryfall (rate limit conservativo a ~5 req/s) e ricerca istantanea offline tramite dump Scryfall Bulk Data.
 - **Coda di Revisione e Verifica Obbligatoria:** Flusso di verifica progettato affinché nessun riconoscimento incerto venga salvato alla cieca. L'utente confermerà, modificherà l'edizione o correggerà lingua e finitura prima dell'inserimento permanente.
 
@@ -44,6 +50,13 @@
 - **Link Diretti di Mercato:** Collegamenti ipertestuali diretti pianificati alle pagine ufficiali di Cardmarket senza violare le policy con web scraping non autorizzato.
 - **Esportatori Standard:** Esportazione pianificata dell'intera collezione o di singoli raccoglitori in formato CSV per Moxfield, Archidekt e Deckbox, ed esportazione decklist nel formato testo ufficiale per Magic Arena e MTGO.
 
+### 5. Assistente MTG Integrato (Chat AI Locale — Futura Milestone Pianificata)
+
+- **Assistente MTG Locale Dedicato:** Basato sul motore AI locale integrato, offre un'interfaccia conversazionale offline senza alcuna dipendenza da servizi cloud o abbonamenti AI a pagamento. Tutti i dati della collezione e le cronologie di chat rimangono confidenziali e memorizzati sul disco locale.
+- **Guida all'Applicazione:** Risponde a quesiti sulle funzionalità del software, assiste i nuovi utenti nei flussi di catalogazione e inventario e fornisce supporto passo-passo nella risoluzione di problemi.
+- **Ricerca e Statistiche in Linguaggio Naturale:** Consente di interrogare la collezione con linguaggio colloquiale (es. *"Mostrami tutti i vampiri neri foil di Innistrad"* oppure *"Qual è il valore di mercato totale dei miei mazzi Commander?"*). Qualsiasi proposta di modifica o operazione batch generata dall'assistente richiede sempre l'esplicita conferma preventiva dell'utente.
+- **Regole Ufficiali e Interazioni tra Carte:** Spiega interazioni complesse e risponde a dubbi arbitrali basandosi sul Comprehensive Rules ufficiale di Magic e sui ruling di Scryfall. Riporta con precisione la versione/data del documento di regole utilizzato e distingue in modo trasparente le citazioni letterali delle regole verificate dalle elaborazioni sintetiche dell'AI.
+
 ---
 
 ## Panoramica dell'Architettura Target
@@ -54,6 +67,9 @@
 ```text
 MTG Collection Manager (Architettura Target del Prodotto)
 ├── Frontend: React 19 + TypeScript + Vite + Tailwind CSS 4 + Zustand
+│   ├── Navigazione & Viste Collezione (Inventario, Raccoglitori, Mazzi, Mercato)
+│   ├── Chat Assistente MTG Integrata (Query in Linguaggio Naturale & Regole)
+│   └── UI Gestore Modelli Locali (Diagnostica Hardware, Catalogo, Downloader)
 ├── Shell Desktop: Tauri 2 (Rust)
 ├── Database: SQLite (integrato via rusqlite con WAL mode e FTS5)
 ├── Acquisizione:
@@ -62,9 +78,12 @@ MTG Collection Manager (Architettura Target del Prodotto)
 │   ├── Windows WIA 2.0 (COM Nativo a 64-bit)
 │   └── Linux SANE CLI (scanimage)
 ├── Computer Vision: Warping prospettico (aspect ratio 0.716) & orientamento
-├── Livello di Inferenza:
-│   ├── llama-cpp-2 (Compute Vulkan / Metal / CPU AVX2)
-│   └── Motore Standalone Tesseract OCR
+├── Livello di Inferenza & AI Integrata:
+│   ├── Gestore Modelli Locali (Rilevamento hardware, catalogo, download/hash manager)
+│   ├── Runtime incorporato llama.cpp (fallback universale CPU + compute Vulkan/Metal testato)
+│   ├── Modelli di Visione (LFM2.5-VL / Qwen2.5-VL GGUF) per identificazione carte
+│   ├── Modelli di Testo (GGUF) per Assistente MTG & Motore Regole
+│   └── Motore Standalone Tesseract OCR (Modalità Zero-AI)
 └── API Esterne: Scryfall API (client con rate limit a 5 req/s) & CardTrader API
 ```
 
@@ -74,21 +93,29 @@ MTG Collection Manager (Architettura Target del Prodotto)
 
 - **Milestone 0: Preparazione del Progetto & CI** :white_check_mark: *(Completato)*
   - Setup repository Git, licenza Apache-2.0, file NOTICE, documentazione bilingue, verifiche CI.
-- **Milestone 1: Fondamenta & Schema Relazionale SQLite** *(Non ancora avviato - Prossimo)*
-  - Scaffold Tauri 2 + React 19, database a 10 tabelle relazionali con migrazioni versionate.
+- **Milestone 1: Fondamenta & Schema Relazionale SQLite** *(In corso / Verifica)*
+  - Scaffold Tauri 2 + React 19, database SQLite relazionale con migrazioni versionate, schema per inventario e collezioni.
 - **Milestone 2: Client Asincrono Scryfall & Cache Locale** *(Pianificato)*
   - Rate limiting a ~5 req/s, backoff esponenziale, ingestione Bulk Data, interfaccia di verifica.
 - **Milestone 3: Acquisizione Immagini, Ritaglio & Scanner Live Webcam** *(Pianificato)*
   - Live Camera Scanner a 60 FPS con rilevamento stabilità e anti-duplicato, test comparativi OpenCV/Rust.
 - **Milestone 4: Scanner Fisici Flatbed (Priorità Windows)** *(Pianificato)*
   - Sidecar TWAIN a 32-bit, WIA 2.0 nativo, protezione scanner piani.
-- **Milestone 5: Modulo AI di Visione Locale & Modalità No-AI** *(Pianificato)*
-  - PoC standalone, accelerazione Vulkan per GPU (AMD Radeon / NVIDIA), modelli LFM2.5-VL, fallback No-AI.
+- **Milestone 5: Gestore Integrato Modelli AI Locali & Motore di Visione (Modalità Zero-AI)** *(Pianificato)*
+  - Gestore interno dei modelli (rilevamento hardware, catalogo, download/verifica hash, cartella personalizzata).
+  - Runtime di inferenza integrato `llama.cpp` con fallback CPU universale e accelerazione GPU validata.
+  - Modelli di visione compatti on-device (LFM2.5-VL / Qwen2.5-VL) e modalità Zero-AI senza download (Tesseract OCR).
+  - Nessuna dipendenza esterna da Ollama, LM Studio o servizi cloud.
 - **Milestone 6: Inventario Fisico & Collezioni Virtuali** *(Pianificato)*
   - Griglia virtualizzata (oltre 20.000 carte), coordinate di stoccaggio fisico, collezioni molti-a-molti.
 - **Milestone 7: Prezzi EUR & Esportatori Certificati** *(Pianificato)*
   - Scryfall EUR, CardTrader API, link Cardmarket, esportazioni Moxfield/Archidekt/Deckbox.
-- **Milestone 8: Packaging Cross-Platform & GitHub Release** *(Pianificato)*
+- **Milestone 8: Assistente MTG Integrato & Chat AI Locale** *(Pianificato)*
+  - Assistenza integrata sulle funzionalità dell'applicazione, navigazione e flussi di collezione.
+  - Ricerca della collezione in linguaggio naturale, statistiche e modifiche solo previa conferma esplicita.
+  - Integrazione delle Magic Comprehensive Rules con tracciamento versione e distinzione regole/AI.
+  - Funzionamento 100% locale, riservato e offline per impostazione predefinita.
+- **Milestone 9: Packaging Cross-Platform & Release GitHub** *(Pianificato)*
   - Installer Windows `.exe` (NSIS) e `.msi`, Linux `.AppImage`/`.deb`, macOS `.dmg`.
 
 ---
