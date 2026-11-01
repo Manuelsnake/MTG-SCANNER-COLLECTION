@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Bot,
   Boxes,
   Camera,
   Cpu,
@@ -198,7 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           Future milestones will connect directly to this SQLite schema without breaking existing data:
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
             <div className="flex items-center gap-2 text-indigo-400 mb-1">
               <Globe className="w-4 h-4" />
@@ -237,9 +238,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Cpu className="w-4 h-4" />
               <span className="text-xs font-semibold">Milestone 5</span>
             </div>
-            <p className="text-xs font-medium text-slate-200">Local AI Vision Engine</p>
+            <p className="text-xs font-medium text-slate-200">Local AI Model Manager</p>
             <p className="text-[11px] text-slate-400 mt-1">
-              Compact LFM2.5-VL / Qwen2.5-VL models running locally via Vulkan GPU compute.
+              In-app model downloads, hardware detection, llama.cpp inference, and Zero-AI mode.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
+            <div className="flex items-center gap-2 text-indigo-400 mb-1">
+              <Bot className="w-4 h-4" />
+              <span className="text-xs font-semibold">Milestone 8</span>
+            </div>
+            <p className="text-xs font-medium text-slate-200">Integrated MTG Assistant</p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Private offline chat for collection queries, statistics, and Magic rules guidance.
             </p>
           </div>
         </div>

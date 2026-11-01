@@ -41,7 +41,11 @@ export const StatusBanner: React.FC = () => {
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/50 text-[11px] text-slate-400">
             <Clock className="w-3 h-3 text-amber-400" />
-            <span>Local AI Vision: Milestone 5</span>
+            <span>Local AI Manager: Milestone 5</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/50 text-[11px] text-slate-400">
+            <Clock className="w-3 h-3 text-amber-400" />
+            <span>MTG Assistant: Milestone 8</span>
           </div>
         </div>
       </div>
