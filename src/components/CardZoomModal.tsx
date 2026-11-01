@@ -1,8 +1,9 @@
-import React from "react";
-import { ExternalLink, Layers, MapPin, Tag } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { ExternalLink, Layers, MapPin, Maximize2, RefreshCw, Tag } from "lucide-react";
 import { Modal } from "./Modal";
 import { CardImage } from "./CardImage";
-import type { CollectionSummary, InventoryItemDetail } from "../types";
+import { ImageZoomModal } from "./ImageZoomModal";
+import type { CollectionSummary, InventoryItemDetail, ScryfallCardFace } from "../types";
 
 interface CardZoomModalProps {
   item: InventoryItemDetail | null;
@@ -15,11 +16,44 @@ export const CardZoomModal: React.FC<CardZoomModalProps> = ({
   collections,
   onClose,
 }) => {
-  if (!item) return null;
+  const [activeFaceIndex, setActiveFaceIndex] = useState<number>(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
 
   const itemCollections = collections.filter((c) =>
-    item.collection_ids.includes(c.id)
+    item?.collection_ids.includes(c.id)
   );
+
+  // Parse card faces for transform / double-faced cards
+  const parsedFaces = useMemo<ScryfallCardFace[] | null>(() => {
+    if (!item?.card_faces) return null;
+    try {
+      const parsed =
+        typeof item.card_faces === "string"
+          ? JSON.parse(item.card_faces)
+          : item.card_faces;
+      if (Array.isArray(parsed) && parsed.length > 1) {
+        return parsed;
+      }
+    } catch {
+      // not JSON
+    }
+    return null;
+  }, [item]);
+
+  const currentImageUrl = useMemo(() => {
+    if (parsedFaces && parsedFaces[activeFaceIndex]) {
+      const face = parsedFaces[activeFaceIndex];
+      return (
+        face.image_uris?.large ||
+        face.image_uris?.normal ||
+        face.image_uris?.small ||
+        item?.image_url
+      );
+    }
+    return item?.image_url || item?.image_small;
+  }, [parsedFaces, activeFaceIndex, item]);
+
+  if (!item) return null;
 
   const modalTitle =
     item.printed_name && item.printed_name !== item.card_name
@@ -27,23 +61,56 @@ export const CardZoomModal: React.FC<CardZoomModalProps> = ({
       : item.card_name;
 
   return (
-    <Modal
-      isOpen={!!item}
-      onClose={onClose}
-      title={modalTitle}
-      maxWidth="max-w-2xl"
-    >
-      <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
-        {/* Card Artwork */}
-        <div className="w-64 h-[358px] shrink-0 rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-950">
-          <CardImage
-            scryfallId={item.scryfall_id}
-            remoteUrl={item.image_url}
-            alt={item.card_name}
-            size="normal"
-            className="w-full h-full"
-          />
-        </div>
+    <>
+      <Modal
+        isOpen={!!item}
+        onClose={onClose}
+        title={modalTitle}
+        maxWidth="max-w-2xl"
+      >
+        <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+          {/* Card Artwork with Face Toggle & Lightbox Trigger */}
+          <div
+            className="relative w-64 sm:w-72 aspect-[2.5/3.5] shrink-0 rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-950 group cursor-pointer hover:border-indigo-500/70 transition-all"
+            onClick={() => setIsLightboxOpen(true)}
+            title="Click to view full high-resolution image"
+          >
+            <CardImage
+              scryfallId={item.scryfall_id}
+              remoteUrl={currentImageUrl}
+              alt={item.card_name}
+              size="normal"
+              className="w-full h-full group-hover:scale-105 transition-transform duration-300"
+            />
+
+            {/* Hover overlay hint */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 pointer-events-none">
+              <div className="p-2 rounded-full bg-black/80 text-white shadow-lg border border-white/20">
+                <Maximize2 className="w-5 h-5 text-indigo-300" />
+              </div>
+              <span className="text-[11px] font-semibold text-white bg-black/75 px-2 py-0.5 rounded shadow">
+                Full Image
+              </span>
+            </div>
+
+            {/* Double-faced Flip Button */}
+            {parsedFaces && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveFaceIndex((prev) => (prev === 0 ? 1 : 0));
+                }}
+                className="absolute bottom-2 right-2 px-2.5 py-1 rounded bg-black/85 hover:bg-black text-[11px] text-indigo-300 border border-indigo-500/50 font-semibold flex items-center gap-1 shadow-lg z-10"
+                title="Switch Card Face"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>
+                  Face {activeFaceIndex + 1}/{parsedFaces.length}
+                </span>
+              </button>
+            )}
+          </div>
 
         {/* Card Metadata */}
         <div className="flex-1 space-y-4 text-xs w-full">
@@ -157,5 +224,21 @@ export const CardZoomModal: React.FC<CardZoomModalProps> = ({
         </div>
       </div>
     </Modal>
+
+    {/* Full Screen Lightbox Zoom Modal */}
+    <ImageZoomModal
+      isOpen={isLightboxOpen}
+      onClose={() => setIsLightboxOpen(false)}
+      cardName={item.card_name}
+      printedName={item.printed_name}
+      setCode={item.set_code}
+      collectorNumber={item.collector_number}
+      setName={item.set_name}
+      lang={item.language}
+      scryfallId={item.scryfall_id}
+      imageUrl={currentImageUrl}
+      cardFaces={item.card_faces}
+    />
+  </>
   );
 };

@@ -538,6 +538,10 @@ impl Database {
         let lang = input.language.trim().to_lowercase();
         let finish = input.finish.trim().to_lowercase();
         let condition = input.condition.trim().to_uppercase();
+        let card_faces_str = input.card_faces.as_ref().map(|v| match v {
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        });
 
         let printing_id: String = {
             let existing: Option<String> = tx
@@ -575,7 +579,7 @@ impl Database {
                         input.image_url,
                         input.image_small,
                         input.image_art_crop,
-                        input.card_faces,
+                        card_faces_str,
                         input.printed_name,
                         now,
                         id
@@ -606,7 +610,7 @@ impl Database {
                         input.image_url,
                         input.image_small,
                         input.image_art_crop,
-                        input.card_faces,
+                        card_faces_str,
                         lang,
                         input.printed_name,
                         now,
@@ -724,7 +728,7 @@ impl Database {
             image_art_crop: input.image_art_crop,
             local_image_path: None,
             image_status: Some("available".to_string()),
-            card_faces: input.card_faces,
+            card_faces: card_faces_str,
             quantity: final_quantity,
             language: lang,
             finish,
@@ -772,7 +776,10 @@ impl Database {
             JOIN printings p ON inv.printing_id = p.id
             JOIN cards c ON p.card_id = c.id
             LEFT JOIN locations loc ON inv.location_id = loc.id
-            LEFT JOIN scryfall_cache sc ON (p.scryfall_id = sc.scryfall_id OR (LOWER(p.set_code) = LOWER(sc.set_code) AND LOWER(p.collector_number) = LOWER(sc.collector_number) AND p.lang = sc.lang))
+            LEFT JOIN scryfall_cache sc ON (
+                (p.scryfall_id IS NOT NULL AND p.scryfall_id = sc.scryfall_id)
+                OR (p.scryfall_id IS NULL AND LOWER(p.set_code) = LOWER(sc.set_code) AND LOWER(p.collector_number) = LOWER(sc.collector_number) AND (p.lang = sc.lang OR (p.lang IS NULL AND sc.lang = 'en')))
+            )
             WHERE 1=1
             "#,
         );
@@ -850,6 +857,108 @@ impl Database {
             .collect();
 
         Ok(items)
+    }
+
+    /// Auto-heal missing metadata for printings using the local Scryfall cache
+    pub fn backfill_inventory_metadata_from_cache(&self) -> AppResult<u32> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
+
+        let count = conn.execute(
+            r#"
+            UPDATE printings 
+            SET scryfall_id = COALESCE(printings.scryfall_id, sc.scryfall_id),
+                image_url = COALESCE(printings.image_url, sc.image_normal, sc.image_small),
+                image_small = COALESCE(printings.image_small, sc.image_small, sc.image_normal),
+                image_art_crop = COALESCE(printings.image_art_crop, sc.image_art_crop),
+                mana_cost = COALESCE(printings.mana_cost, sc.mana_cost),
+                rarity = COALESCE(printings.rarity, sc.rarity),
+                type_line = COALESCE(printings.type_line, sc.type_line),
+                image_status = 'available',
+                updated_at = ?1
+            FROM scryfall_cache sc
+            WHERE (printings.scryfall_id IS NULL OR printings.image_url IS NULL)
+              AND (
+                (printings.scryfall_id IS NOT NULL AND printings.scryfall_id = sc.scryfall_id)
+                OR (LOWER(printings.set_code) = LOWER(sc.set_code) AND LOWER(printings.collector_number) = LOWER(sc.collector_number))
+              )
+            "#,
+            params![now],
+        )?;
+
+        Ok(count as u32)
+    }
+
+    /// Retrieve all printings currently in inventory that are missing Scryfall image metadata
+    pub fn get_unhealed_printings(&self) -> AppResult<Vec<(String, String, String, String)>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"
+            SELECT DISTINCT p.id, p.set_code, p.collector_number, COALESCE(p.lang, 'en')
+            FROM printings p
+            JOIN inventory_items inv ON p.id = inv.printing_id
+            WHERE p.image_url IS NULL OR p.scryfall_id IS NULL
+            "#,
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?;
+
+        let mut results = Vec::new();
+        for r in rows {
+            results.push(r?);
+        }
+        Ok(results)
+    }
+
+    /// Update a printing with full Scryfall card metadata
+    pub fn update_printing_with_scryfall(
+        &self,
+        printing_id: &str,
+        card: &crate::scryfall::models::ScryfallCard,
+    ) -> AppResult<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
+
+        let image_url = card.get_image_url("normal");
+        let image_small = card.get_image_url("small");
+        let image_art_crop = card.get_image_url("art_crop");
+        let card_faces_str = card
+            .card_faces
+            .as_ref()
+            .and_then(|f| serde_json::to_string(f).ok());
+
+        conn.execute(
+            r#"
+            UPDATE printings
+            SET scryfall_id = ?1,
+                image_url = COALESCE(?2, image_url),
+                image_small = COALESCE(?3, image_small),
+                image_art_crop = COALESCE(?4, image_art_crop),
+                mana_cost = COALESCE(?5, mana_cost),
+                type_line = COALESCE(?6, type_line),
+                rarity = COALESCE(?7, rarity),
+                card_faces = COALESCE(?8, card_faces),
+                image_status = 'available',
+                updated_at = ?9
+            WHERE id = ?10
+            "#,
+            params![
+                card.id,
+                image_url,
+                image_small,
+                image_art_crop,
+                card.mana_cost,
+                card.type_line,
+                card.rarity,
+                card_faces_str,
+                now,
+                printing_id
+            ],
+        )?;
+
+        Ok(())
     }
 
     pub fn update_inventory_quantity(

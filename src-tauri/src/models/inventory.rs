@@ -84,7 +84,7 @@ pub struct AddScryfallCardInput {
     pub image_url: Option<String>,
     pub image_small: Option<String>,
     pub image_art_crop: Option<String>,
-    pub card_faces: Option<String>,
+    pub card_faces: Option<serde_json::Value>,
     pub quantity: i64,
     pub language: String,
     pub finish: String,

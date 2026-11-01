@@ -68,6 +68,23 @@ export interface AddManualCardInput {
   notes?: string | null;
 }
 
+export interface ScryfallCardFace {
+  name: string;
+  printed_name?: string | null;
+  mana_cost?: string | null;
+  type_line?: string | null;
+  oracle_text?: string | null;
+  colors?: string[];
+  image_uris?: {
+    small?: string;
+    normal?: string;
+    large?: string;
+    png?: string;
+    art_crop?: string;
+    border_crop?: string;
+  };
+}
+
 export interface ScryfallSearchResult {
   scryfall_id: string;
   oracle_id: string | null;
@@ -85,7 +102,7 @@ export interface ScryfallSearchResult {
   image_url: string | null;
   image_small: string | null;
   image_art_crop: string | null;
-  card_faces?: string | null;
+  card_faces?: ScryfallCardFace[] | string | null;
   is_paper?: boolean;
   digital?: boolean;
   artist?: string | null;
@@ -133,7 +150,7 @@ export interface AddScryfallCardInput {
   image_url?: string | null;
   image_small?: string | null;
   image_art_crop?: string | null;
-  card_faces?: string | null;
+  card_faces?: ScryfallCardFace[] | string | null;
   quantity: number;
   language: string;
   finish: string;

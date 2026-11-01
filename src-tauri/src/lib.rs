@@ -55,6 +55,7 @@ pub fn run() {
             crate::commands::get_inventory_items,
             crate::commands::update_inventory_quantity,
             crate::commands::delete_inventory_item,
+            crate::commands::heal_inventory_images,
             // Locations
             crate::commands::create_location,
             crate::commands::list_locations,

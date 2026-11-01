@@ -46,6 +46,13 @@ export const App: React.FC = () => {
       setInventory(inv);
       setCollections(cols);
       setLocations(locs);
+
+      // Auto-heal missing metadata/images for legacy or manually entered cards in background
+      api.healInventoryImages().then((healedCount) => {
+        if (healedCount > 0) {
+          api.getInventoryItems().then(setInventory).catch(() => {});
+        }
+      }).catch(() => {});
     } catch (err) {
       console.error("Failed to load application data:", err);
       setErrorNotification(String(err));

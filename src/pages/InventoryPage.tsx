@@ -140,6 +140,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
       const matchesSearch =
         q === "" ||
         item.card_name.toLowerCase().includes(q) ||
+        (item.printed_name && item.printed_name.toLowerCase().includes(q)) ||
         item.set_code.toLowerCase().includes(q) ||
         item.collector_number.toLowerCase().includes(q) ||
         (item.location_name && item.location_name.toLowerCase().includes(q)) ||
@@ -319,8 +320,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               >
                 <CardImage
                   scryfallId={item.scryfall_id}
-                  remoteUrl={item.image_url}
-                  alt={item.card_name}
+                  remoteUrl={item.image_url || item.image_small}
+                  alt={item.printed_name || item.card_name}
                   size="normal"
                   className="w-full h-full group-hover:scale-105 transition-transform duration-300"
                 />
@@ -449,8 +450,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               >
                 <CardImage
                   scryfallId={item.scryfall_id}
-                  remoteUrl={item.image_url}
-                  alt={item.card_name}
+                  remoteUrl={item.image_small || item.image_url}
+                  alt={item.printed_name || item.card_name}
                   size="small"
                   className="w-full h-full group-hover:scale-105 transition-transform duration-300"
                 />
@@ -512,8 +513,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
                         >
                           <CardImage
                             scryfallId={item.scryfall_id}
-                            remoteUrl={item.image_url}
-                            alt={item.card_name}
+                            remoteUrl={item.image_small || item.image_url}
+                            alt={item.printed_name || item.card_name}
                             size="small"
                             className="w-full h-full"
                           />

@@ -85,6 +85,10 @@ export const api = {
     await invoke("delete_inventory_item", { id });
   },
 
+  async healInventoryImages(): Promise<number> {
+    return await invoke<number>("heal_inventory_images");
+  },
+
   // Locations Commands
   async listLocations(): Promise<Location[]> {
     return await invoke<Location[]>("list_locations");

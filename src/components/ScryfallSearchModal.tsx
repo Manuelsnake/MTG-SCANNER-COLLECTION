@@ -9,12 +9,14 @@ import {
   Globe,
   Layers,
   Loader2,
+  Maximize2,
   Plus,
   RefreshCw,
   Search,
 } from "lucide-react";
 import { Modal } from "./Modal";
 import { CardImage } from "./CardImage";
+import { ImageZoomModal } from "./ImageZoomModal";
 import { api } from "../services/api";
 import {
   type AddScryfallCardInput,
@@ -46,6 +48,8 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<ScryfallSearchResult[]>([]);
   const [selectedCard, setSelectedCard] = useState<ScryfallSearchResult | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<ScryfallSearchResult | null>(null);
+  const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
 
   // Printings state for the selected card
   const [printings, setPrintings] = useState<ScryfallSearchResult[]>([]);
@@ -342,13 +346,18 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
   // Parse card faces if multi-faced card
   const parsedFaces = useMemo(() => {
     if (!selectedCard?.card_faces) return null;
-    try {
-      const parsed = JSON.parse(selectedCard.card_faces);
-      if (Array.isArray(parsed) && parsed.length > 1) {
-        return parsed;
+    if (Array.isArray(selectedCard.card_faces) && selectedCard.card_faces.length > 1) {
+      return selectedCard.card_faces;
+    }
+    if (typeof selectedCard.card_faces === "string") {
+      try {
+        const parsed = JSON.parse(selectedCard.card_faces);
+        if (Array.isArray(parsed) && parsed.length > 1) {
+          return parsed;
+        }
+      } catch {
+        // not JSON
       }
-    } catch {
-      // not JSON
     }
     return null;
   }, [selectedCard]);
@@ -501,6 +510,8 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                     <div
                       key={card.scryfall_id}
                       onClick={() => handleSelectCard(card)}
+                      onMouseEnter={() => setHoveredCard(card)}
+                      onMouseLeave={() => setHoveredCard(null)}
                       className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center gap-3 ${
                         isSelected
                           ? "bg-indigo-600/20 border-indigo-500 shadow-md ring-1 ring-indigo-500/50"
@@ -508,7 +519,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                       }`}
                     >
                       {/* Card Thumbnail */}
-                      <div className="w-12 h-16 bg-slate-800 rounded-md overflow-hidden shrink-0 border border-slate-700/60 shadow-xs">
+                      <div className="w-14 h-20 bg-slate-800 rounded-md overflow-hidden shrink-0 border border-slate-700/60 shadow-xs">
                         <CardImage
                           scryfallId={card.scryfall_id}
                           remoteUrl={card.image_small || card.image_url}
@@ -569,6 +580,33 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                 })
               )}
             </div>
+
+            {/* Hover Card Floating Tooltip */}
+            {hoveredCard && hoveredCard.scryfall_id !== selectedCard?.scryfall_id && (
+              <div className="mt-2 p-2.5 bg-slate-900/95 border border-indigo-500/50 rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in duration-150 shrink-0">
+                <div className="w-16 h-22 rounded-md overflow-hidden border border-slate-700 shrink-0 bg-slate-950">
+                  <CardImage
+                    scryfallId={hoveredCard.scryfall_id}
+                    remoteUrl={hoveredCard.image_url || hoveredCard.image_small}
+                    alt={hoveredCard.name}
+                    size="small"
+                    className="w-full h-full"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-100 truncate">
+                    {hoveredCard.printed_name || hoveredCard.name}
+                  </p>
+                  <p className="text-[10px] text-indigo-300 font-mono">
+                    {hoveredCard.set_code} #{hoveredCard.collector_number}
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate mt-0.5">{hoveredCard.type_line}</p>
+                  <p className="text-[11px] text-emerald-400 font-bold mt-1">
+                    {formatPrice(hoveredCard.price_eur)}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Card Details, Printing Selector & Inventory Form */}
@@ -576,24 +614,42 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
             {selectedCard ? (
               <form onSubmit={handleAddCardToInventory} className="space-y-4">
                 {/* Selected Card Overview Card */}
-                <div className="flex flex-col sm:flex-row gap-4 p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md">
-                  {/* Big Card Image */}
-                  <div className="relative w-36 h-50 sm:w-32 sm:h-44 mx-auto sm:mx-0 shrink-0 rounded-lg overflow-hidden border border-slate-700 shadow-lg bg-slate-950">
+                <div className="flex flex-col sm:flex-row gap-5 p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md">
+                  {/* Big Card Image Container with Click-to-Zoom */}
+                  <div
+                    className="relative w-52 sm:w-60 aspect-[2.5/3.5] mx-auto sm:mx-0 shrink-0 rounded-xl overflow-hidden border border-slate-700 shadow-xl bg-slate-950 group cursor-pointer hover:border-indigo-500/70 transition-all"
+                    onClick={() => setIsImageZoomOpen(true)}
+                    title="Click to zoom card image"
+                  >
                     <CardImage
                       scryfallId={selectedCard.scryfall_id}
                       remoteUrl={currentDisplayImage}
                       alt={selectedCard.name}
                       size="normal"
-                      className="w-full h-full"
+                      className="w-full h-full group-hover:scale-105 transition-transform duration-300"
                     />
+
+                    {/* Hover Zoom Overlay */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 pointer-events-none">
+                      <div className="p-2 rounded-full bg-black/80 text-white shadow-lg border border-white/20">
+                        <Maximize2 className="w-5 h-5 text-indigo-300" />
+                      </div>
+                      <span className="text-[11px] font-semibold text-white bg-black/75 px-2 py-0.5 rounded shadow">
+                        Click to Zoom
+                      </span>
+                    </div>
+
                     {parsedFaces && (
                       <button
                         type="button"
-                        onClick={() => setActiveFaceIndex((prev) => (prev === 0 ? 1 : 0))}
-                        className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 hover:bg-black text-[10px] text-indigo-300 border border-indigo-500/40 font-mono flex items-center gap-1 shadow-md"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveFaceIndex((prev) => (prev === 0 ? 1 : 0));
+                        }}
+                        className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/85 hover:bg-black text-[10px] text-indigo-300 border border-indigo-500/50 font-semibold flex items-center gap-1 shadow-lg z-10"
                         title="Switch Card Face"
                       >
-                        <RefreshCw className="w-2.5 h-2.5" />
+                        <RefreshCw className="w-3 h-3" />
                         <span>Face {activeFaceIndex + 1}/{parsedFaces.length}</span>
                       </button>
                     )}
@@ -980,6 +1036,23 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Dedicated Image Zoom Modal */}
+      {selectedCard && (
+        <ImageZoomModal
+          isOpen={isImageZoomOpen}
+          onClose={() => setIsImageZoomOpen(false)}
+          cardName={selectedCard.name}
+          printedName={selectedCard.printed_name}
+          setCode={selectedCard.set_code}
+          collectorNumber={selectedCard.collector_number}
+          setName={selectedCard.set_name}
+          lang={selectedCard.lang}
+          scryfallId={selectedCard.scryfall_id}
+          imageUrl={currentDisplayImage}
+          cardFaces={selectedCard.card_faces}
+        />
+      )}
     </Modal>
   );
 };

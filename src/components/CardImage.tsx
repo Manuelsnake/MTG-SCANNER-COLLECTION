@@ -22,7 +22,7 @@ export const CardImage: React.FC<CardImageProps> = ({
   showZoomCursor = false,
 }) => {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(Boolean(scryfallId || remoteUrl));
   const [hasError, setHasError] = useState<boolean>(false);
 
   useEffect(() => {
@@ -30,6 +30,7 @@ export const CardImage: React.FC<CardImageProps> = ({
 
     if (!scryfallId && !remoteUrl) {
       setImageSrc(null);
+      setIsLoading(false);
       return;
     }
 
@@ -52,9 +53,23 @@ export const CardImage: React.FC<CardImageProps> = ({
         }
 
         // Fallback to direct remote URL if backend image cache didn't return data
-        if (remoteUrl) {
+        if (remoteUrl && remoteUrl.trim()) {
           if (isMounted) {
-            setImageSrc(remoteUrl);
+            setImageSrc(remoteUrl.trim());
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Direct Scryfall CDN fallback if UUID is available
+        if (scryfallId && scryfallId.trim().length === 36) {
+          const cleanId = scryfallId.trim();
+          const c1 = cleanId[0];
+          const c2 = cleanId[1];
+          const cdnSize = size === "small" ? "small" : size === "art_crop" ? "art_crop" : "normal";
+          const fallbackCdn = `https://cards.scryfall.io/${cdnSize}/front/${c1}/${c2}/${cleanId}.jpg`;
+          if (isMounted) {
+            setImageSrc(fallbackCdn);
             setIsLoading(false);
             return;
           }
@@ -66,9 +81,12 @@ export const CardImage: React.FC<CardImageProps> = ({
         }
       } catch {
         if (isMounted) {
-          // If IPC failed, try remote URL directly
           if (remoteUrl) {
             setImageSrc(remoteUrl);
+          } else if (scryfallId && scryfallId.trim().length === 36) {
+            const cleanId = scryfallId.trim();
+            const cdnSize = size === "small" ? "small" : "normal";
+            setImageSrc(`https://cards.scryfall.io/${cdnSize}/front/${cleanId[0]}/${cleanId[1]}/${cleanId}.jpg`);
           } else {
             setHasError(true);
           }
@@ -89,12 +107,12 @@ export const CardImage: React.FC<CardImageProps> = ({
   if (hasError || (!imageSrc && !isLoading)) {
     return (
       <div
-        className={`bg-slate-900 border border-slate-800 rounded flex flex-col items-center justify-center text-slate-600 select-none ${className} ${cursorClass}`}
+        className={`bg-slate-900 border border-slate-800 rounded flex flex-col items-center justify-center text-slate-500 select-none p-2 ${className} ${cursorClass}`}
         onClick={onClick}
         title={alt}
       >
-        <ImageIcon className="w-5 h-5 opacity-40 mb-1" />
-        <span className="text-[10px] text-slate-400 font-mono px-1 text-center truncate max-w-full">
+        <ImageIcon className="w-6 h-6 opacity-40 mb-1 text-slate-400" />
+        <span className="text-[10px] text-slate-400 font-mono text-center truncate max-w-full">
           {alt}
         </span>
       </div>
@@ -107,23 +125,31 @@ export const CardImage: React.FC<CardImageProps> = ({
       onClick={onClick}
     >
       {isLoading && !imageSrc && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
-          <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10 animate-pulse">
+          <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
         </div>
       )}
       {imageSrc && (
         <img
           src={imageSrc}
           alt={alt}
-          className="w-full h-full object-cover transition-transform duration-200"
+          className="w-full h-full object-contain transition-transform duration-200"
           onError={() => {
             if (imageSrc !== remoteUrl && remoteUrl) {
               setImageSrc(remoteUrl);
+            } else if (
+              scryfallId &&
+              scryfallId.trim().length === 36 &&
+              !imageSrc.includes("cards.scryfall.io")
+            ) {
+              const cleanId = scryfallId.trim();
+              const cdnSize = size === "small" ? "small" : "normal";
+              setImageSrc(`https://cards.scryfall.io/${cdnSize}/front/${cleanId[0]}/${cleanId[1]}/${cleanId}.jpg`);
             } else {
               setHasError(true);
             }
           }}
-          loading="lazy"
+          loading={imageSrc.startsWith("data:") ? "eager" : "lazy"}
         />
       )}
     </div>

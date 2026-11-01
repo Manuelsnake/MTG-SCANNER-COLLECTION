@@ -65,16 +65,48 @@ impl ImageCacheManager {
         self.cache_dir.join(format!("{clean_id}_{clean_size}.jpg"))
     }
 
-    /// Check if a cached image exists and is non-empty
+    /// Check if an exact cached image exists and is non-empty
     pub fn has_image(&self, scryfall_id: &str, size: &str) -> bool {
         let path = self.get_file_path(scryfall_id, size);
         path.is_file() && fs::metadata(&path).map(|m| m.len() > 0).unwrap_or(false)
     }
 
-    /// Retrieve cached image as data URL (data:image/jpeg;base64,...)
-    pub fn get_base64(&self, scryfall_id: &str, size: &str) -> Option<String> {
-        let path = self.get_file_path(scryfall_id, size);
-        if path.is_file() {
+    /// Check if any cached image exists for this card, returning the path and size found
+    pub fn find_cached_image(
+        &self,
+        scryfall_id: &str,
+        preferred_size: &str,
+    ) -> Option<(PathBuf, String)> {
+        let clean_id = scryfall_id.trim();
+        if clean_id.is_empty() {
+            return None;
+        }
+
+        // Size fallback hierarchy based on preferred size
+        let sizes_to_check: &[&str] = match preferred_size {
+            "small" => &["small", "normal", "large", "art_crop", "png"],
+            "large" => &["large", "normal", "small", "art_crop", "png"],
+            "art_crop" => &["art_crop", "normal", "large", "small", "png"],
+            _ => &["normal", "large", "small", "art_crop", "png"],
+        };
+
+        for &size in sizes_to_check {
+            let path = self.get_file_path(clean_id, size);
+            if path.is_file() && fs::metadata(&path).map(|m| m.len() > 0).unwrap_or(false) {
+                return Some((path, size.to_string()));
+            }
+        }
+
+        None
+    }
+
+    /// Retrieve cached image as data URL (data:image/jpeg;base64,...), with fallback across sizes
+    pub fn get_base64_with_fallback(
+        &self,
+        scryfall_id: &str,
+        preferred_size: &str,
+    ) -> Option<String> {
+        if let Some((path, _)) = self.find_cached_image(scryfall_id, preferred_size) {
             if let Ok(bytes) = fs::read(&path) {
                 if !bytes.is_empty() {
                     let encoded = BASE64_STANDARD.encode(&bytes);
@@ -85,15 +117,27 @@ impl ImageCacheManager {
         None
     }
 
-    /// Save image bytes to disk safely
+    /// Retrieve cached image as data URL (data:image/jpeg;base64,...)
+    pub fn get_base64(&self, scryfall_id: &str, size: &str) -> Option<String> {
+        self.get_base64_with_fallback(scryfall_id, size)
+    }
+
+    /// Save image bytes to disk safely using unique temporary file name to prevent concurrency locks
     pub fn save_image_bytes(
         &self,
         scryfall_id: &str,
         size: &str,
         bytes: &[u8],
     ) -> AppResult<PathBuf> {
-        let target_path = self.get_file_path(scryfall_id, size);
-        let tmp_path = target_path.with_extension("tmp");
+        let clean_id = scryfall_id.trim();
+        let clean_size = if size.trim().is_empty() {
+            "normal"
+        } else {
+            size.trim()
+        };
+        let target_path = self.get_file_path(clean_id, clean_size);
+        let tmp_file_name = format!("{clean_id}_{clean_size}_{}.tmp", uuid::Uuid::new_v4());
+        let tmp_path = self.cache_dir.join(tmp_file_name);
 
         fs::write(&tmp_path, bytes).map_err(|e| {
             AppError::Io(format!(
@@ -102,12 +146,21 @@ impl ImageCacheManager {
             ))
         })?;
 
-        fs::rename(&tmp_path, &target_path).map_err(|e| {
-            AppError::Io(format!(
+        if let Err(e) = fs::rename(&tmp_path, &target_path) {
+            // If target already exists and is valid on Windows, clean up temp file and succeed
+            if target_path.is_file()
+                && fs::metadata(&target_path)
+                    .map(|m| m.len() > 0)
+                    .unwrap_or(false)
+            {
+                let _ = fs::remove_file(&tmp_path);
+                return Ok(target_path);
+            }
+            return Err(AppError::Io(format!(
                 "Failed to finalize image file {}: {e}",
                 target_path.display()
-            ))
-        })?;
+            )));
+        }
 
         Ok(target_path)
     }
@@ -165,28 +218,62 @@ impl ImageCacheManager {
     }
 
     /// Retrieve image as base64 data URI, downloading if remote URL is provided and not yet cached.
+    /// Supports multi-tier size fallback and direct Scryfall CDN recovery.
     pub async fn get_image(
         &self,
         scryfall_id: &str,
         remote_url: Option<&str>,
         size: &str,
     ) -> AppResult<Option<String>> {
-        if let Some(cached) = self.get_base64(scryfall_id, size) {
+        let clean_id = scryfall_id.trim();
+        if clean_id.is_empty() {
+            return Ok(None);
+        }
+
+        // 1. If any cached version of this card exists on disk, return it immediately
+        if let Some(cached) = self.get_base64_with_fallback(clean_id, size) {
             return Ok(Some(cached));
         }
+
+        // 2. If remote_url is provided, attempt download and caching
         if let Some(url) = remote_url {
             let trimmed = url.trim();
             if !trimmed.is_empty() {
-                match self.download_and_cache(scryfall_id, trimmed, size).await {
-                    Ok(_) => return Ok(self.get_base64(scryfall_id, size)),
+                match self.download_and_cache(clean_id, trimmed, size).await {
+                    Ok(_) => return Ok(self.get_base64_with_fallback(clean_id, size)),
                     Err(e) => {
-                        warn!("Could not download and cache image for {scryfall_id}: {e}");
-                        return Ok(None);
+                        warn!(
+                            "Could not download and cache image for {clean_id} from {trimmed}: {e}"
+                        );
                     }
                 }
             }
         }
-        Ok(None)
+
+        // 3. Scryfall CDN fallback: If no remote_url was provided or download failed,
+        // construct canonical Scryfall CDN front face URL if clean_id is a 36-char UUID.
+        if clean_id.len() == 36 && clean_id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+            let c1 = &clean_id[0..1];
+            let c2 = &clean_id[1..2];
+            let cdn_size = match size {
+                "small" => "small",
+                "large" => "large",
+                "art_crop" => "art_crop",
+                _ => "normal",
+            };
+            let cdn_url =
+                format!("https://cards.scryfall.io/{cdn_size}/front/{c1}/{c2}/{clean_id}.jpg");
+            if self
+                .download_and_cache(clean_id, &cdn_url, size)
+                .await
+                .is_ok()
+            {
+                return Ok(self.get_base64_with_fallback(clean_id, size));
+            }
+        }
+
+        // 4. Final check for any fallback size that may exist
+        Ok(self.get_base64_with_fallback(clean_id, size))
     }
 
     /// Clear all cached image files on disk
