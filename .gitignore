@@ -92,9 +92,10 @@ scansioni/
 debug_capture.png
 *.log
 
-# Explicit exceptions for approved project documentation assets
+# Explicit exceptions for approved project documentation assets and application icons
 !docs/assets/**
 !assets/**
+!src-tauri/icons/**
 
 # --- Secrets, Credentials & Certificates ---
 .env
