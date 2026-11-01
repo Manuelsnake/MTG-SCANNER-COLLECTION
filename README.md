@@ -9,9 +9,9 @@
 **English** | [Italiano](README.it.md)
 
 > [!NOTE]
-> **Project Status: In Active Development (Milestones 0 & 1 Completed — Milestone 2 Feature Complete)**
+> **Project Status: In Active Development (Milestones 0 & 1 Completed — Milestone 2 In Progress)**
 >
-> MTG Collection Manager has completed its core architecture, SQLite relational foundation (Milestone 1), and full asynchronous Scryfall integration with multilingual card search, offline image caching, and image zoom modal (Milestone 2 on branch `feature/milestone-2-scryfall`). The primary development focus now advances to camera and flatbed card scanning (Milestones 3 & 4) and integrated local AI management (Milestone 5). The long-term product vision will evolve into **ManaTeca — Scry & Tell**, adding an Archidekt-inspired multilingual deck builder, official Commander Bracket intelligence, and verified combo analysis in future milestones.
+> MTG Collection Manager has completed its core architecture, SQLite relational foundation (Milestone 1), and is currently completing Milestone 2 (Scryfall integration, multilingual search, printing selection, add to collection from Scryfall, image cache, and collection card zoom) on branch `feature/milestone-2-scryfall`. The primary development focus will then advance to camera and flatbed card scanning (Milestones 3 & 4) and integrated local AI management (Milestone 5). The long-term product vision will evolve into **ManaTeca — Scry & Tell**, adding an Archidekt-inspired multilingual deck builder, official Commander Bracket intelligence, and verified combo analysis in future milestones.
 
 **MTG Collection Manager** is a free, open-source, privacy-focused desktop application for scanning, identifying, and organizing Magic: The Gathering card collections. Built on **Tauri 2**, **Rust**, and **React 19**, it prioritizes a fast, rock-solid Windows experience while preserving a clean cross-platform architecture for Linux and macOS.
 
@@ -124,11 +124,11 @@ MTG Collection Manager / ManaTeca (Target Product Architecture)
 - **Milestone 0: Project Preparation & CI Setup** :white_check_mark: *(Completed)*
   - Git repository initialization, Apache-2.0 license, NOTICE attribution, bilingual documentation, CI lint/security workflows.
 - **Milestone 1: Foundations & SQLite Relational Schema** :white_check_mark: *(Completed)*
-  - Tauri 2 + React 19 scaffold, relational SQLite database with versioned migrations, physical inventory & collections schema.
-- **Milestone 2: Scryfall Asynchronous Client, Multilingual Search & Offline Cache** :white_check_mark: *(Completed & Tested)*
-  - Rate-limited Scryfall client, SQLite caching, multilingual search in 18 languages, local image cache with fallback, double-faced card support, and image zoom lightbox.
-- **Milestone 3: Image Acquisition, Multi-Card Cropping & Live Camera Scanner** *(Next Primary Priority)*
-  - Real-time 60 FPS webcam scanner with auto-stability detection and anti-duplicate lock, comparative OpenCV/Rust cropping tests.
+  - Tauri 2 + React 19 scaffold, relational SQLite database with versioned migrations, physical inventory & collections schema, manual entry, local persistence.
+- **Milestone 2: Scryfall Asynchronous Client, Multilingual Search, 4 View Modes & Bilingual UI (IT/EN)** :hammer_and_wrench: *(In Progress)*
+  - Rate-limited Scryfall client, SQLite caching, multilingual search in 18 languages, printing and edition selection, add to collection from Scryfall, local disk image cache with fallback hierarchy, double-faced card support, hover preview, high-resolution image zoom modal in both search and collection views, 4 customizable collection view modes (Grid, Compact, List, Gallery), and complete application internationalization (Italian and English UI with automatic OS language detection, an always-visible `[ IT ] [ EN ]` selector in the top navigation bar, and Settings selector).
+- **Milestone 3: Image Acquisition, Multi-Card Cropping & Live Camera Scanner** *(Planned - Next Primary Priority)*
+  - Real-time 60 FPS webcam scanner with auto-stability detection and anti-duplicate lock, card detection and recognition pipeline, comparative OpenCV/Rust cropping tests.
 - **Milestone 4: Physical Flatbed Scanners (Windows-First)** *(Planned)*
   - TWAIN 32-bit sidecar, WIA 2.0 integration, flatbed-first protection.
 - **Milestone 5: Integrated Local AI Model Manager & Vision Engine (Zero-AI Mode)** *(Planned)*
@@ -153,6 +153,20 @@ MTG Collection Manager / ManaTeca (Target Product Architecture)
   - Official 5-tier Commander bracket classification (Exhibition to cEDH) with explainable advisory score, versioned Game Changers, and Commander Spellbook combo recognition engine.
 - **Final Rebranding Phase: ManaTeca — Scry & Tell** *(Final Transition)*
   - Public brand launch, icon/installer updates, and backward-compatible AppData/SQLite migration.
+
+---
+
+## Support the Project & Donations
+
+MTG Collection Manager is and will **always remain 100% free and open-source software** under the Apache License 2.0. There are no paid tiers, no subscription fees, no locked features, and no advertisements. Every single feature is available to everyone without restrictions, and donations are **never required** to use the application.
+
+If you appreciate the project, find it useful, and want to support its ongoing independent development, donations are gratefully welcomed but **entirely voluntary**:
+
+- **Ko-fi:** Support directly via [ko-fi.com/manuelsnake](https://ko-fi.com/manuelsnake)
+  [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/manuelsnake)
+- **GitHub Sponsor Button:** Click the **Sponsor** button identified by a heart icon (`♥`) at the top of the [GitHub Repository](https://github.com/Manuelsnake/MTG-SCANNER-COLLECTION), which links directly to the developer's Ko-fi page.
+
+Your voluntary support directly helps fund development time, testing hardware (such as physical flatbed scanners and capture devices), and continuous improvements to the application. Thank you!
 
 ---
 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Boxes, Plus, Trash2 } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { useI18n } from "../i18n";
 import type { CreateLocationInput, Location } from "../types";
 
 interface LocationsPageProps {
@@ -14,6 +15,7 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
   onCreateLocation,
   onDeleteLocation,
 }) => {
+  const { t } = useI18n();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState("");
   const [locationType, setLocationType] = useState("Binder");
@@ -26,7 +28,7 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
     setFormError("");
 
     if (!name.trim()) {
-      setFormError("Location name is required");
+      setFormError(t("locationsPage.nameRequired"));
       return;
     }
 
@@ -48,17 +50,37 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
     }
   };
 
+  const getLocationTypeLabel = (type: string) => {
+    switch (type.toLowerCase()) {
+      case "binder":
+        return t("locationsPage.typeBinder");
+      case "box":
+      case "box / container":
+        return t("locationsPage.typeBox");
+      case "drawer":
+      case "slot":
+      case "slot / pocket":
+        return t("locationsPage.typeDrawer");
+      case "shelf":
+      case "page":
+      case "binder page":
+        return t("locationsPage.typeShelf");
+      case "deckbox":
+        return t("locationsPage.typeDeckbox");
+      default:
+        return type || t("locationsPage.typeOther");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header and Action */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-100 tracking-tight">
-            Physical Storage Locations
+            {t("locationsPage.title")}
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Track where your cards physically reside (binders, boxes, album pages, slots).
-          </p>
+          <p className="text-xs text-slate-400 mt-0.5">{t("locationsPage.subtitle")}</p>
         </div>
 
         <button
@@ -66,7 +88,7 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
           className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all shadow-md shadow-indigo-600/20"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Location</span>
+          <span>{t("locationsPage.newLocation")}</span>
         </button>
       </div>
 
@@ -74,15 +96,17 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
       {locations.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
           <Boxes className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-200">No storage locations configured</h3>
+          <h3 className="text-base font-semibold text-slate-200">
+            {t("locationsPage.noLocationsTitle")}
+          </h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Create physical locations like &ldquo;Binder #1&rdquo;, &ldquo;Long Box Alpha&rdquo;, or &ldquo;Commander Deckbox&rdquo;.
+            {t("locationsPage.noLocationsDesc")}
           </p>
           <button
             onClick={() => setIsModalOpen(true)}
             className="mt-4 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-all"
           >
-            Add First Location
+            {t("locationsPage.newLocation")}
           </button>
         </div>
       ) : (
@@ -98,19 +122,23 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2">
                       <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                        {loc.location_type}
+                        {getLocationTypeLabel(loc.location_type)}
                       </span>
                       <h3 className="font-semibold text-slate-100 text-sm">{loc.name}</h3>
                     </div>
 
                     <button
                       onClick={() => {
-                        if (confirm(`Delete storage location "${loc.name}"?`)) {
+                        if (
+                          confirm(
+                            t("locationsPage.deleteLocationConfirm", { name: loc.name })
+                          )
+                        ) {
                           onDeleteLocation(loc.id);
                         }
                       }}
                       className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                      title="Delete Location"
+                      title={t("common.delete")}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -123,7 +151,9 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
                   )}
 
                   <p className="text-xs text-slate-400">
-                    {loc.description || <span className="italic">No description</span>}
+                    {loc.description || (
+                      <span className="italic">{t("common.none")}</span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -136,7 +166,7 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Create Physical Storage Location"
+        title={t("locationsPage.createTitle")}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           {formError && (
@@ -147,12 +177,12 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-300">
-              Location Name <span className="text-rose-400">*</span>
+              {t("locationsPage.nameLabel")} <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Rare Binder #1, Holiday Box 2024, Page 4"
+              placeholder={t("locationsPage.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
@@ -161,17 +191,20 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-300">Type</label>
+              <label className="text-xs font-medium text-slate-300">
+                {t("locationsPage.typeLabel")}
+              </label>
               <select
                 value={locationType}
                 onChange={(e) => setLocationType(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-hidden focus:border-indigo-500"
               >
-                <option value="Binder">Binder</option>
-                <option value="Box">Box / Container</option>
-                <option value="Page">Binder Page</option>
-                <option value="Slot">Slot / Pocket</option>
-                <option value="Custom">Custom</option>
+                <option value="Binder">{t("locationsPage.typeBinder")}</option>
+                <option value="Box">{t("locationsPage.typeBox")}</option>
+                <option value="Drawer">{t("locationsPage.typeDrawer")}</option>
+                <option value="Shelf">{t("locationsPage.typeShelf")}</option>
+                <option value="Deckbox">{t("locationsPage.typeDeckbox")}</option>
+                <option value="Other">{t("locationsPage.typeOther")}</option>
               </select>
             </div>
 
@@ -182,10 +215,10 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
                 onChange={(e) => setParentId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-hidden focus:border-indigo-500"
               >
-                <option value="">None (Top-level)</option>
+                <option value="">{t("common.none")}</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
-                    {loc.name} ({loc.location_type})
+                    {loc.name} ({getLocationTypeLabel(loc.location_type)})
                   </option>
                 ))}
               </select>
@@ -193,10 +226,12 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-300">Description (Optional)</label>
+            <label className="text-xs font-medium text-slate-300">
+              {t("locationsPage.descriptionLabel")}
+            </label>
             <textarea
               rows={2}
-              placeholder="e.g. Ultra Pro 9-pocket zip binder with white sleeve inserts"
+              placeholder={t("locationsPage.descriptionPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
@@ -209,13 +244,13 @@ export const LocationsPage: React.FC<LocationsPageProps> = ({
               onClick={() => setIsModalOpen(false)}
               className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm hover:bg-slate-700 transition-colors"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all shadow-md shadow-indigo-600/30"
             >
-              Save Location
+              {t("locationsPage.createBtn")}
             </button>
           </div>
         </form>

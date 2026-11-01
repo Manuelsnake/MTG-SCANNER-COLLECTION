@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ExternalLink, RefreshCw, X } from "lucide-react";
 import { CardImage } from "./CardImage";
+import { useI18n } from "../i18n";
 import type { ScryfallCardFace } from "../types";
 
 export interface ImageZoomModalProps {
@@ -30,6 +31,7 @@ export const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
   imageUrl,
   cardFaces,
 }) => {
+  const { t } = useI18n();
   const [activeFaceIndex, setActiveFaceIndex] = useState<number>(0);
 
   // Reset face index when card changes or modal opens
@@ -78,6 +80,9 @@ export const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
         imageUrl
       );
     }
+    if (imageUrl && imageUrl.includes("/normal/")) {
+      return imageUrl.replace("/normal/", "/large/");
+    }
     return imageUrl;
   }, [parsedFaces, activeFaceIndex, imageUrl]);
 
@@ -118,7 +123,7 @@ export const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors shrink-0 shadow-md"
-            title="Close (Esc)"
+            title={`${t("common.close")} (Esc)`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -130,7 +135,7 @@ export const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
             scryfallId={scryfallId}
             remoteUrl={currentImageUrl}
             alt={currentDisplayName}
-            size="normal"
+            size="large"
             className="w-full h-full object-contain"
           />
 
@@ -142,11 +147,11 @@ export const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
                 setActiveFaceIndex((prev) => (prev === 0 ? 1 : 0))
               }
               className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-black/85 hover:bg-black text-xs text-indigo-300 border border-indigo-500/50 font-semibold flex items-center gap-1.5 shadow-xl transition-all hover:scale-105"
-              title="Flip Card Face"
+              title={t("common.flipFace")}
             >
               <RefreshCw className="w-3.5 h-3.5 text-indigo-400 animate-spin-hover" />
               <span>
-                Face {activeFaceIndex + 1}/{parsedFaces.length}
+                {t("common.face")} {activeFaceIndex + 1}/{parsedFaces.length}
               </span>
             </button>
           )}
@@ -155,7 +160,7 @@ export const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
         {/* Footer Link */}
         <div className="w-full flex items-center justify-between pt-3 text-xs text-slate-400">
           <span className="text-[11px] text-slate-400">
-            Click outside or press <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-[10px]">Esc</kbd> to close
+            {t("common.pressEscToClose")}
           </span>
           {scryfallId && (
             <a
@@ -164,7 +169,7 @@ export const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 hover:underline transition-colors text-xs"
             >
-              <span>View on Scryfall</span>
+              <span>{t("common.viewOnScryfall")}</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           )}

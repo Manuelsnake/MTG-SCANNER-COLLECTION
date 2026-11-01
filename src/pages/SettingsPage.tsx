@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Database, HardDrive, Info, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  Database,
+  Globe,
+  HardDrive,
+  Info,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { api } from "../services/api";
+import { useI18n } from "../i18n";
 import type { DatabaseInfo, ImageCacheStats } from "../types";
 
 interface SettingsPageProps {
@@ -14,6 +25,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onRefresh,
   onVerifyIntegrity,
 }) => {
+  const { language, setLanguage, detectedSystemLanguage, t, formatNumber } = useI18n();
+
   const [integrityResult, setIntegrityResult] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [cacheStats, setCacheStats] = useState<ImageCacheStats | null>(null);
@@ -34,17 +47,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   }, []);
 
   const handleClearCache = async () => {
-    if (!window.confirm("Are you sure you want to clear the local image cache? Images will be re-downloaded on demand.")) {
+    if (!window.confirm(t("settings.purgeConfirm"))) {
       return;
     }
     setIsClearingCache(true);
     setClearMessage(null);
     try {
       const count = await api.clearCardImageCache();
-      setClearMessage(`Successfully purged ${count} cached card images.`);
+      setClearMessage(`Purged ${count} cached card images.`);
       await loadCacheStats();
     } catch (err) {
-      setClearMessage(`Failed to clear cache: ${String(err)}`);
+      setClearMessage(`Error: ${String(err)}`);
     } finally {
       setIsClearingCache(false);
     }
@@ -73,10 +86,92 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-xl font-bold text-slate-100 tracking-tight">Application Settings</h2>
-        <p className="text-xs text-slate-400 mt-0.5">
-          SQLite database configuration, system diagnostics, and application information.
-        </p>
+        <h2 className="text-xl font-bold text-slate-100 tracking-tight">
+          {t("settings.title")}
+        </h2>
+        <p className="text-xs text-slate-400 mt-0.5">{t("settings.subtitle")}</p>
+      </div>
+
+      {/* Language Preferences Card */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-100 text-sm">
+                {t("settings.languageTitle")}
+              </h3>
+              <p className="text-xs text-slate-400">{t("settings.languageSubtitle")}</p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <span className="text-[11px] font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
+              {t("settings.detectedSystemLanguage", { lang: detectedSystemLanguage })}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Italian Option */}
+          <button
+            type="button"
+            onClick={() => setLanguage("it")}
+            className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${
+              language === "it"
+                ? "bg-indigo-600/10 border-indigo-500 text-slate-100 shadow-sm"
+                : "bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-2xl" role="img" aria-label="Italiano">
+                🇮🇹
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-100">Italiano</p>
+                <p className="text-xs text-slate-400">{t("settings.langItalian")}</p>
+              </div>
+            </div>
+            {language === "it" && (
+              <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+            )}
+          </button>
+
+          {/* English Option */}
+          <button
+            type="button"
+            onClick={() => setLanguage("en")}
+            className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${
+              language === "en"
+                ? "bg-indigo-600/10 border-indigo-500 text-slate-100 shadow-sm"
+                : "bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-2xl" role="img" aria-label="English">
+                🇬🇧
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-100">English</p>
+                <p className="text-xs text-slate-400">{t("settings.langEnglish")}</p>
+              </div>
+            </div>
+            {language === "en" && (
+              <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+            )}
+          </button>
+        </div>
+
+        <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2">
+          <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+          <span>{t("settings.languageNote")}</span>
+        </div>
       </div>
 
       {/* Database Diagnostic Card */}
@@ -87,10 +182,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-100 text-sm">Permanent SQLite Database</h3>
-              <p className="text-xs text-slate-400">
-                Operating System Local Storage with Write-Ahead Logging (WAL)
-              </p>
+              <h3 className="font-semibold text-slate-100 text-sm">
+                {t("settings.databaseTitle")}
+              </h3>
+              <p className="text-xs text-slate-400">{t("settings.databaseSubtitle")}</p>
             </div>
           </div>
 
@@ -99,7 +194,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh Stats</span>
+            <span>{t("settings.refreshStats")}</span>
           </button>
         </div>
 
@@ -107,19 +202,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block mb-1">Database File Location</span>
+                <span className="text-slate-400 block mb-1">{t("settings.dbPath")}</span>
                 <span className="font-mono text-slate-200 break-all">{dbInfo.path}</span>
               </div>
 
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between">
                 <div>
-                  <span className="text-slate-400 block mb-1">Schema Migration Version</span>
+                  <span className="text-slate-400 block mb-1">
+                    {t("settings.migrationVersion")}
+                  </span>
                   <span className="font-mono font-bold text-indigo-400 text-base">
                     Version {dbInfo.schema_version}
                   </span>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Up to Date
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {t("settings.upToDate")}
                 </span>
               </div>
             </div>
@@ -127,44 +224,66 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             {/* Table Counts */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center text-xs">
               <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Cards</span>
-                <span className="font-bold text-slate-100 text-sm">{dbInfo.cards_count}</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  {t("settings.statCards")}
+                </span>
+                <span className="font-bold text-slate-100 text-sm">
+                  {formatNumber(dbInfo.cards_count)}
+                </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Printings</span>
-                <span className="font-bold text-slate-100 text-sm">{dbInfo.printings_count}</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  {t("settings.statPrintings")}
+                </span>
+                <span className="font-bold text-slate-100 text-sm">
+                  {formatNumber(dbInfo.printings_count)}
+                </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Items</span>
-                <span className="font-bold text-slate-100 text-sm">{dbInfo.inventory_count}</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  {t("settings.statItems")}
+                </span>
+                <span className="font-bold text-slate-100 text-sm">
+                  {formatNumber(dbInfo.inventory_count)}
+                </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Copies</span>
-                <span className="font-bold text-emerald-400 text-sm">{dbInfo.total_card_quantity}</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  {t("settings.statCopies")}
+                </span>
+                <span className="font-bold text-emerald-400 text-sm">
+                  {formatNumber(dbInfo.total_card_quantity)}
+                </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Collections</span>
-                <span className="font-bold text-cyan-400 text-sm">{dbInfo.collections_count}</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  {t("settings.statCollections")}
+                </span>
+                <span className="font-bold text-cyan-400 text-sm">
+                  {formatNumber(dbInfo.collections_count)}
+                </span>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Locations</span>
-                <span className="font-bold text-purple-400 text-sm">{dbInfo.locations_count}</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                  {t("settings.statLocations")}
+                </span>
+                <span className="font-bold text-purple-400 text-sm">
+                  {formatNumber(dbInfo.locations_count)}
+                </span>
               </div>
             </div>
 
             {/* Integrity Check */}
-            <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950 p-3.5 rounded-lg border border-slate-800">
+            <div className="pt-2 flex flex-col sm:row items-start sm:items-center justify-between gap-3 bg-slate-950 p-3.5 rounded-lg border border-slate-800">
               <div>
                 <span className="text-xs font-semibold text-slate-200 block">
-                  Database Integrity Verification
+                  {t("settings.integrityTitle")}
                 </span>
-                <p className="text-[11px] text-slate-400">
-                  Runs SQLite &ldquo;PRAGMA integrity_check&rdquo; to detect index or page corruption.
-                </p>
+                <p className="text-[11px] text-slate-400">{t("settings.integrityDesc")}</p>
                 {integrityResult && (
                   <p className="text-xs mt-1.5 font-mono text-emerald-400 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Status: {integrityResult}
+                    {t("settings.integrityStatus", { result: integrityResult })}
                   </p>
                 )}
               </div>
@@ -175,13 +294,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>{isVerifying ? "Verifying..." : "Run Integrity Check"}</span>
+                <span>{isVerifying ? t("settings.verifying") : t("settings.runIntegrityBtn")}</span>
               </button>
             </div>
           </div>
         ) : (
           <div className="py-6 text-center text-slate-400 text-xs">
-            Connecting to SQLite database...
+            {t("settings.connectingDb")}
           </div>
         )}
       </div>
@@ -194,10 +313,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <HardDrive className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-100 text-sm">Local Card Image Cache</h3>
-              <p className="text-xs text-slate-400">
-                Offline thumbnail cache on disk (never stored in SQLite)
-              </p>
+              <h3 className="font-semibold text-slate-100 text-sm">
+                {t("settings.cacheTitle")}
+              </h3>
+              <p className="text-xs text-slate-400">{t("settings.cacheSubtitle")}</p>
             </div>
           </div>
 
@@ -206,7 +325,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh Stats</span>
+            <span>{t("settings.refreshStats")}</span>
           </button>
         </div>
 
@@ -214,21 +333,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="space-y-4 text-xs">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block mb-1">Cached Card Images</span>
+                <span className="text-slate-400 block mb-1">{t("settings.cachedImages")}</span>
                 <span className="font-mono font-bold text-indigo-400 text-base">
-                  {cacheStats.total_images} files
+                  {formatNumber(cacheStats.total_images)}
                 </span>
               </div>
 
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block mb-1">Disk Space Used</span>
+                <span className="text-slate-400 block mb-1">{t("settings.diskSpaceUsed")}</span>
                 <span className="font-mono font-bold text-emerald-400 text-base">
                   {formatBytes(cacheStats.total_bytes)}
                 </span>
               </div>
 
               <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                <span className="text-slate-400 block mb-1">Cache Directory</span>
+                <span className="text-slate-400 block mb-1">{t("settings.cacheDir")}</span>
                 <span className="font-mono text-slate-300 break-all text-[11px]">
                   {cacheStats.cache_dir}
                 </span>
@@ -248,13 +367,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/30 disabled:opacity-40 text-rose-300 text-xs font-medium transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{isClearingCache ? "Clearing..." : "Purge Image Cache"}</span>
+                <span>
+                  {isClearingCache ? t("settings.purging") : t("settings.purgeCacheBtn")}
+                </span>
               </button>
             </div>
           </div>
         ) : (
           <div className="py-4 text-center text-slate-400 text-xs">
-            Loading image cache diagnostics...
+            {t("settings.loadingCacheStats")}
           </div>
         )}
       </div>
@@ -263,24 +384,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xs space-y-3">
         <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
           <Info className="w-4 h-4 text-slate-400" />
-          <h3 className="font-semibold text-slate-100 text-sm">About MTG Collection Manager</h3>
+          <h3 className="font-semibold text-slate-100 text-sm">{t("settings.aboutTitle")}</h3>
         </div>
 
         <div className="text-xs text-slate-300 space-y-2">
-          <p>
-            <strong>MTG Collection Manager</strong> is a free, open-source desktop software
-            released under the Apache License, Version 2.0.
-          </p>
-          <p className="text-slate-400">
-            Current version: <span className="text-slate-200 font-mono">0.1.0 (Milestone 1)</span>.
-            Built with <strong>Tauri 2</strong>, <strong>React 19</strong>, <strong>Rust</strong>,
-            and <strong>bundled SQLite</strong>.
-          </p>
-          <p className="text-slate-400 text-[11px]">
-            Wizards of the Coast, Magic: The Gathering, and their logos are trademarks of Wizards
-            of the Coast LLC. MTG Collection Manager is unofficial Fan Content permitted under the
-            Fan Content Policy.
-          </p>
+          <p>{t("settings.aboutDesc1")}</p>
+          <p className="text-slate-400">{t("settings.aboutDesc2")}</p>
+          <p className="text-slate-400 text-[11px]">{t("settings.aboutWotcDisclaimer")}</p>
         </div>
       </div>
     </div>

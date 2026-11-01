@@ -9,9 +9,9 @@
 [English](README.md) | **Italiano**
 
 > [!NOTE]
-> **Stato del Progetto: In Sviluppo Attivo (Milestone 0 e 1 Completate — Milestone 2 Funzionalmente Completa)**
+> **Stato del Progetto: In Sviluppo Attivo (Milestone 0 e 1 Completate — Milestone 2 In Corso)**
 >
-> MTG Collection Manager ha completato la propria architettura di base, lo schema relazionale SQLite (Milestone 1) e l'integrazione asincrona completa con Scryfall, la ricerca multilingua in 18 lingue, la cache delle immagini offline e il visualizzatore zoom (Milestone 2 sul branch `feature/milestone-2-scryfall`). La priorità principale di sviluppo avanza ora verso l'acquisizione e scansione da webcam e scanner flatbed (Milestone 3 e 4) e il gestore integrato di AI locale (Milestone 5). La visione di prodotto a lungo termine evolverà in **ManaTeca — Scry & Tell**, introducendo un Deck Builder multilingua ispirato ad Archidekt, la classificazione Commander Bracket ufficiale e l'analisi combinazioni verificate nelle milestone future.
+> MTG Collection Manager ha completato la propria architettura di base, lo schema relazionale SQLite (Milestone 1) ed è attualmente in fase di completamento della Milestone 2 (integrazione Scryfall, ricerca multilingua, selezione stampe ed edizioni, aggiunta alla collezione da Scryfall, cache immagini e visualizzatore zoom ad alta risoluzione nella collezione) sul branch `feature/milestone-2-scryfall`. La priorità principale di sviluppo avanzerà verso l'acquisizione e scansione da webcam e scanner flatbed (Milestone 3 e 4) e il gestore integrato di AI locale (Milestone 5). La visione di prodotto a lungo termine evolverà in **ManaTeca — Scry & Tell**, introducendo un Deck Builder multilingua ispirato ad Archidekt, la classificazione Commander Bracket ufficiale e l'analisi combinazioni verificate nelle milestone future.
 
 **MTG Collection Manager** è un'applicazione desktop libera, open-source e attenta alla privacy per la scansione, l'identificazione e la catalogazione di collezioni di carte di Magic: The Gathering. Sviluppata con **Tauri 2**, **Rust** e **React 19**, pone come priorità assoluta un'esperienza solida e reattiva su **Windows**, preservando un'architettura modulare e pulita per Linux e macOS.
 
@@ -124,11 +124,11 @@ MTG Collection Manager / ManaTeca (Architettura Target del Prodotto)
 - **Milestone 0: Preparazione del Progetto & CI** :white_check_mark: *(Completato)*
   - Setup repository Git, licenza Apache-2.0, file NOTICE, documentazione bilingue, verifiche CI.
 - **Milestone 1: Fondamenta & Schema Relazionale SQLite** :white_check_mark: *(Completato)*
-  - Scaffold Tauri 2 + React 19, database SQLite relazionale con migrazioni versionate, schema per inventario e collezioni.
-- **Milestone 2: Client Asincrono Scryfall, Ricerca Multilingua & Cache Offline** :white_check_mark: *(Completato e Collaudato)*
-  - Rate limiting Scryfall, cache SQLite, ricerca multilingua in 18 lingue, cache immagini locale con fallback taglie, supporto MDFC e lightbox zoom.
-- **Milestone 3: Acquisizione Immagini, Ritaglio & Scanner Live Webcam** *(Prossima Priorità Principale)*
-  - Live Camera Scanner a 60 FPS con rilevamento stabilità e anti-duplicato, test comparativi OpenCV/Rust.
+  - Scaffold Tauri 2 + React 19, database SQLite relazionale con migrazioni versionate, schema per inventario e collezioni, inserimento manuale, persistenza locale.
+- **Milestone 2: Client Asincrono Scryfall, Ricerca Multilingua, 4 Modalità di Visualizzazione & UI Bilingue (IT/EN)** :hammer_and_wrench: *(In Corso)*
+  - Client Scryfall rate-limited, cache SQLite, ricerca multilingua in 18 lingue, selezione edizioni e stampe specifiche, aggiunta alla collezione da Scryfall, cache immagini su disco con gerarchia di fallback, supporto carte bifronte (MDFC), anteprima al passaggio del mouse (hover preview), lightbox zoom ad alta risoluzione sia nella ricerca che nella collezione, 4 modalità di visualizzazione della collezione personalizzabili (Griglia, Compatta, Tabella, Galleria) e internazionalizzazione completa dell'interfaccia (UI in Italiano e Inglese con autorilevamento lingua del sistema operativo, selettore sempre visibile `[ IT ] [ EN ]` nella barra di navigazione superiore e impostazioni persistenti).
+- **Milestone 3: Acquisizione Immagini, Ritaglio & Scanner Live Webcam** *(Pianificato - Prossima Priorità Principale)*
+  - Live Camera Scanner a 60 FPS con rilevamento stabilità e anti-duplicato, pipeline di rilevamento e riconoscimento carte, test comparativi OpenCV/Rust.
 - **Milestone 4: Scanner Fisici Flatbed (Priorità Windows)** *(Pianificato)*
   - Sidecar TWAIN a 32-bit, WIA 2.0 nativo, protezione scanner piani.
 - **Milestone 5: Gestore Integrato Modelli AI Locali & Motore di Visione (Modalità Zero-AI)** *(Pianificato)*
@@ -153,6 +153,20 @@ MTG Collection Manager / ManaTeca (Architettura Target del Prodotto)
   - Classificazione ufficiale nei 5 bracket Commander (da Exhibition a cEDH) con score consultivo spiegabile, Game Changers versionati e motore combo basato su Commander Spellbook.
 - **Fase Finale di Rebranding: ManaTeca — Scry & Tell** *(Transizione Conclusiva)*
   - Lancio del brand definitivo, aggiornamento icone e installer, migrazione retrocompatibile garantita di AppData/SQLite.
+
+---
+
+## Supporto al Progetto & Donazioni
+
+MTG Collection Manager è e **rimarrà per sempre un software libero e open source al 100%** sotto licenza Apache 2.0. Non esistono piani a pagamento, abbonamenti, funzionalità bloccate né pubblicità. Tutte le funzionalità sono e saranno sempre accessibili a chiunque senza alcuna restrizione e le donazioni **non sono mai richieste** per utilizzare l'applicazione.
+
+Se apprezzi il progetto, lo trovi utile e desideri supportarne lo sviluppo indipendente continuo, qualsiasi contributo è benvenuto ma **completamente volontario**:
+
+- **Ko-fi:** Sostieni direttamente su [ko-fi.com/manuelsnake](https://ko-fi.com/manuelsnake)
+  [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/manuelsnake)
+- **Pulsante Sponsor di GitHub:** Fai clic sul pulsante **Sponsor** (contrassegnato dall'icona a cuore `♥`) in alto nella pagina del [Repository GitHub](https://github.com/Manuelsnake/MTG-SCANNER-COLLECTION), che rimanda direttamente alla pagina Ko-fi dello sviluppatore.
+
+Il vostro supporto volontario contribuisce direttamente a sostenere il tempo dedicato allo sviluppo, l'acquisizione di hardware di test (scanner piani, webcam e dispositivi di acquisizione) e il miglioramento costante dell'applicazione. Grazie di cuore!
 
 ---
 

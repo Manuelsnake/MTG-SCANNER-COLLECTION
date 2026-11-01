@@ -8,6 +8,7 @@ import { InventoryPage } from "./pages/InventoryPage";
 import { LocationsPage } from "./pages/LocationsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { api } from "./services/api";
+import { useI18n } from "./i18n";
 import type {
   ActiveTab,
   AddManualCardInput,
@@ -19,6 +20,7 @@ import type {
 } from "./types";
 
 export const App: React.FC = () => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
   const [inventory, setInventory] = useState<InventoryItemDetail[]>([]);
@@ -77,7 +79,7 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (confirm("Are you sure you want to delete this card from inventory?")) {
+    if (confirm(t("inventory.deleteCardConfirm"))) {
       await api.deleteInventoryItem(id);
       await loadAllData();
     }
@@ -139,7 +141,7 @@ export const App: React.FC = () => {
               onClick={() => setErrorNotification(null)}
               className="text-xs text-rose-400 hover:text-rose-200 underline"
             >
-              Dismiss
+              {t("common.dismiss")}
             </button>
           </div>
         )}
@@ -147,7 +149,7 @@ export const App: React.FC = () => {
         {isLoading && !dbInfo ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-            <p className="text-sm">Connecting to local SQLite database...</p>
+            <p className="text-sm">{t("settings.connectingDb")}</p>
           </div>
         ) : (
           <>
@@ -220,9 +222,7 @@ export const App: React.FC = () => {
       />
 
       <footer className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-400">
-        <p>
-          MTG Collection Manager • Unofficial Fan Content permitted under WotC Fan Content Policy.
-        </p>
+        <p>{t("common.footerDisclaimer")}</p>
       </footer>
     </div>
   );

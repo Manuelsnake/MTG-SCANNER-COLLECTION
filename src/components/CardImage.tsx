@@ -6,7 +6,8 @@ interface CardImageProps {
   scryfallId?: string | null;
   remoteUrl?: string | null;
   alt: string;
-  size?: "small" | "normal" | "art_crop";
+  size?: "small" | "normal" | "large" | "art_crop";
+  fit?: "contain" | "cover";
   className?: string;
   onClick?: () => void;
   showZoomCursor?: boolean;
@@ -17,6 +18,7 @@ export const CardImage: React.FC<CardImageProps> = ({
   remoteUrl,
   alt,
   size = "normal",
+  fit = "contain",
   className = "",
   onClick,
   showZoomCursor = false,
@@ -66,7 +68,14 @@ export const CardImage: React.FC<CardImageProps> = ({
           const cleanId = scryfallId.trim();
           const c1 = cleanId[0];
           const c2 = cleanId[1];
-          const cdnSize = size === "small" ? "small" : size === "art_crop" ? "art_crop" : "normal";
+          const cdnSize =
+            size === "small"
+              ? "small"
+              : size === "art_crop"
+              ? "art_crop"
+              : size === "large"
+              ? "large"
+              : "normal";
           const fallbackCdn = `https://cards.scryfall.io/${cdnSize}/front/${c1}/${c2}/${cleanId}.jpg`;
           if (isMounted) {
             setImageSrc(fallbackCdn);
@@ -85,7 +94,14 @@ export const CardImage: React.FC<CardImageProps> = ({
             setImageSrc(remoteUrl);
           } else if (scryfallId && scryfallId.trim().length === 36) {
             const cleanId = scryfallId.trim();
-            const cdnSize = size === "small" ? "small" : "normal";
+            const cdnSize =
+              size === "small"
+                ? "small"
+                : size === "art_crop"
+                ? "art_crop"
+                : size === "large"
+                ? "large"
+                : "normal";
             setImageSrc(`https://cards.scryfall.io/${cdnSize}/front/${cleanId[0]}/${cleanId[1]}/${cleanId}.jpg`);
           } else {
             setHasError(true);
@@ -133,7 +149,7 @@ export const CardImage: React.FC<CardImageProps> = ({
         <img
           src={imageSrc}
           alt={alt}
-          className="w-full h-full object-contain transition-transform duration-200"
+          className={`w-full h-full ${fit === "cover" ? "object-cover" : "object-contain"} transition-transform duration-200`}
           onError={() => {
             if (imageSrc !== remoteUrl && remoteUrl) {
               setImageSrc(remoteUrl);
@@ -143,7 +159,14 @@ export const CardImage: React.FC<CardImageProps> = ({
               !imageSrc.includes("cards.scryfall.io")
             ) {
               const cleanId = scryfallId.trim();
-              const cdnSize = size === "small" ? "small" : "normal";
+              const cdnSize =
+                size === "small"
+                  ? "small"
+                  : size === "art_crop"
+                  ? "art_crop"
+                  : size === "large"
+                  ? "large"
+                  : "normal";
               setImageSrc(`https://cards.scryfall.io/${cdnSize}/front/${cleanId[0]}/${cleanId[1]}/${cleanId}.jpg`);
             } else {
               setHasError(true);

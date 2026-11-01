@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { useI18n } from "../i18n";
 import type { CollectionSummary, InventoryItemDetail } from "../types";
 
 interface CollectionsPageProps {
@@ -32,6 +33,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   isCreateModalOpen,
   setIsCreateModalOpen,
 }) => {
+  const { t, formatNumber } = useI18n();
   const [selectedCollection, setSelectedCollection] = useState<CollectionSummary | null>(null);
   const [renamingCollection, setRenamingCollection] = useState<CollectionSummary | null>(null);
 
@@ -47,7 +49,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     setFormError("");
 
     if (!name.trim()) {
-      setFormError("Collection name is required");
+      setFormError(t("collectionsPage.nameRequired"));
       return;
     }
 
@@ -67,7 +69,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     setFormError("");
 
     if (!renameName.trim()) {
-      setFormError("Collection name is required");
+      setFormError(t("collectionsPage.nameRequired"));
       return;
     }
 
@@ -93,11 +95,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       {/* Header and Actions */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 tracking-tight">Virtual Collections</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Organize cards into multiple logical collections (binders, decks, trade lists) without
-            duplicating physical inventory records.
-          </p>
+          <h2 className="text-xl font-bold text-slate-100 tracking-tight">
+            {t("collectionsPage.title")}
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">{t("collectionsPage.subtitle")}</p>
         </div>
 
         <button
@@ -105,7 +106,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all shadow-md shadow-indigo-600/20"
         >
           <Plus className="w-4 h-4" />
-          <span>New Virtual Collection</span>
+          <span>{t("collectionsPage.newCollection")}</span>
         </button>
       </div>
 
@@ -113,15 +114,17 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       {collections.length === 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
           <Library className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-200">No collections created yet</h3>
+          <h3 className="text-base font-semibold text-slate-200">
+            {t("collectionsPage.noCollectionsTitle")}
+          </h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Create your first virtual collection (such as &ldquo;Commander Deck&rdquo; or &ldquo;Foil Binder&rdquo;) to group cards.
+            {t("collectionsPage.noCollectionsDesc")}
           </p>
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="mt-4 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-all"
           >
-            Create Collection
+            {t("collectionsPage.createBtn")}
           </button>
         </div>
       ) : (
@@ -154,7 +157,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           setRenameDescription(col.description || "");
                         }}
                         className="p-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
-                        title="Rename Collection"
+                        title={t("common.rename")}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -163,7 +166,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                         onClick={() => {
                           if (
                             confirm(
-                              `Are you sure you want to delete collection "${col.name}"? Cards in inventory will NOT be deleted.`
+                              t("collectionsPage.deleteCollectionConfirm", { name: col.name })
                             )
                           ) {
                             if (selectedCollection?.id === col.id) {
@@ -173,7 +176,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           }
                         }}
                         className="p-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                        title="Delete Collection"
+                        title={t("common.delete")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -181,18 +184,26 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                   </div>
 
                   <p className="text-xs text-slate-400 line-clamp-2 min-h-8">
-                    {col.description || <span className="italic">No description provided</span>}
+                    {col.description || (
+                      <span className="italic">{t("common.none")}</span>
+                    )}
                   </p>
                 </div>
 
                 <div className="pt-4 border-t border-slate-800/80 mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-3 text-xs">
                     <span className="font-medium text-slate-300">
-                      <strong className="text-indigo-400 font-bold">{col.total_items}</strong> items
+                      <strong className="text-indigo-400 font-bold">
+                        {formatNumber(col.total_items)}
+                      </strong>{" "}
+                      {t("collectionsPage.itemsCount")}
                     </span>
                     <span className="text-slate-500">•</span>
                     <span className="font-medium text-slate-300">
-                      <strong className="text-emerald-400 font-bold">{col.total_quantity}</strong> copies
+                      <strong className="text-emerald-400 font-bold">
+                        {formatNumber(col.total_quantity)}
+                      </strong>{" "}
+                      {t("dashboard.totalCards").toLowerCase()}
                     </span>
                   </div>
 
@@ -207,7 +218,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                     }`}
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
-                    <span>{isSelected ? "Hide Cards" : "View Cards"}</span>
+                    <span>{isSelected ? t("common.close") : t("collectionsPage.cardsInCollection")}</span>
                   </button>
                 </div>
               </div>
@@ -223,13 +234,13 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase tracking-wider font-semibold text-indigo-400">
-                  Collection View
+                  {t("collectionsPage.title")}
                 </span>
                 <span className="text-slate-600">•</span>
                 <h3 className="font-bold text-slate-100 text-base">{selectedCollection.name}</h3>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                {selectedCollection.description || "No description"}
+                {selectedCollection.description || t("common.none")}
               </p>
             </div>
 
@@ -243,20 +254,19 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
           {collectionCards.length === 0 ? (
             <div className="py-8 text-center text-slate-400 text-xs">
-              No cards are currently assigned to this collection. Go to the Inventory tab and click
-              the collection icon on any card to assign it.
+              {t("collectionsPage.noCardsInCollection")}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-800/80 text-slate-400 uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="px-4 py-2.5 rounded-l-lg">Card Name</th>
-                    <th className="px-4 py-2.5">Set / #</th>
-                    <th className="px-4 py-2.5">Condition</th>
-                    <th className="px-4 py-2.5">Finish</th>
-                    <th className="px-4 py-2.5">Quantity</th>
-                    <th className="px-4 py-2.5 rounded-r-lg text-right">Remove</th>
+                    <th className="px-4 py-2.5 rounded-l-lg">{t("inventory.tableCard")}</th>
+                    <th className="px-4 py-2.5">{t("inventory.tableSetNumber")}</th>
+                    <th className="px-4 py-2.5">{t("inventory.tableCondition")}</th>
+                    <th className="px-4 py-2.5">{t("inventory.tableFinish")}</th>
+                    <th className="px-4 py-2.5">{t("inventory.tableQuantity")}</th>
+                    <th className="px-4 py-2.5 rounded-r-lg text-right">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -274,7 +284,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           onClick={() => onRemoveFromCollection(selectedCollection.id, item.id)}
                           className="text-xs text-rose-400 hover:text-rose-300 font-medium"
                         >
-                          Remove
+                          {t("inventory.removeBtn")}
                         </button>
                       </td>
                     </tr>
@@ -290,7 +300,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Create New Virtual Collection"
+        title={t("collectionsPage.createTitle")}
       >
         <form onSubmit={handleCreateSubmit} className="space-y-4">
           {formError && (
@@ -301,12 +311,12 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-slate-300">
-              Collection Name <span className="text-rose-400">*</span>
+              {t("collectionsPage.nameLabel")} <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Rare Binder, Commander Atraxa, Cards for Sale"
+              placeholder={t("collectionsPage.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
@@ -314,10 +324,12 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-300">Description (Optional)</label>
+            <label className="text-xs font-medium text-slate-300">
+              {t("collectionsPage.descLabel")}
+            </label>
             <textarea
               rows={3}
-              placeholder="e.g. Modern staples and high value foil cards"
+              placeholder={t("collectionsPage.descPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500"
@@ -330,13 +342,13 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               onClick={() => setIsCreateModalOpen(false)}
               className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm hover:bg-slate-700 transition-colors"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all shadow-md shadow-indigo-600/30"
             >
-              Create Collection
+              {t("collectionsPage.createBtn")}
             </button>
           </div>
         </form>
@@ -347,7 +359,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         <Modal
           isOpen={true}
           onClose={() => setRenamingCollection(null)}
-          title={`Rename "${renamingCollection.name}"`}
+          title={t("collectionsPage.renameTitle", { name: renamingCollection.name })}
         >
           <form onSubmit={handleRenameSubmit} className="space-y-4">
             {formError && (
@@ -358,7 +370,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-300">
-                New Collection Name <span className="text-rose-400">*</span>
+                {t("collectionsPage.nameLabel")} <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
@@ -370,7 +382,9 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-300">Description (Optional)</label>
+              <label className="text-xs font-medium text-slate-300">
+                {t("collectionsPage.descLabel")}
+              </label>
               <textarea
                 rows={3}
                 value={renameDescription}
@@ -385,13 +399,13 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                 onClick={() => setRenamingCollection(null)}
                 className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm hover:bg-slate-700 transition-colors"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all shadow-md shadow-indigo-600/30"
               >
-                Save Changes
+                {t("common.save")}
               </button>
             </div>
           </form>

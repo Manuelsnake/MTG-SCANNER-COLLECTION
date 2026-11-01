@@ -18,6 +18,7 @@ import { Modal } from "./Modal";
 import { CardImage } from "./CardImage";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { api } from "../services/api";
+import { useI18n } from "../i18n";
 import {
   type AddScryfallCardInput,
   type CollectionSummary,
@@ -41,6 +42,8 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
   locations,
   onCardAdded,
 }) => {
+  const { t, formatPrice } = useI18n();
+
   const [query, setQuery] = useState("");
   const [searchLang, setSearchLang] = useState<string>("any");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -289,7 +292,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
         ? `${selectedCard.printed_name} (${selectedCard.name})`
         : selectedCard.name;
       setSuccessMsg(
-        `Added ${quantity}x "${displayName}" [${language.toUpperCase()}] (${selectedCard.set_code.toUpperCase()} #${selectedCard.collector_number}) to your collection!`
+        t("scryfall.cardAddedNotification", { name: displayName })
       );
       setQuantity(1);
     } catch (err) {
@@ -304,11 +307,6 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
     setSelectedCollectionIds((prev) =>
       prev.includes(colId) ? prev.filter((id) => id !== colId) : [...prev, colId]
     );
-  };
-
-  const formatPrice = (cents: number | null) => {
-    if (cents == null) return "—";
-    return `€${(cents / 100).toFixed(2)}`;
   };
 
   // Distinct languages available among the loaded printings
@@ -374,7 +372,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Search Scryfall & Catalog Magic Card"
+      title={t("scryfall.modalTitle")}
       maxWidth="max-w-6xl"
     >
       <div className="space-y-4">
@@ -399,13 +397,13 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                     executeSearch(query, newLang);
                   }
                 }}
-                className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-9 pr-7 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-medium cursor-pointer shadow-inner appearance-none"
+                className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-9 pr-7 py-2.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500 font-medium cursor-pointer shadow-inner appearance-none"
                 title="Search Language Filter"
               >
                 {SUPPORTED_LANGUAGES.map((l) => (
                   <option key={l.code} value={l.code}>
                     {l.code === "any"
-                      ? "🌐 Any / Tutte le lingue"
+                      ? t("scryfall.anyLanguage")
                       : `${l.nativeName} (${l.code.toUpperCase()})`}
                   </option>
                 ))}
@@ -419,8 +417,8 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                 type="text"
                 value={query}
                 onChange={(e) => handleQueryChange(e.target.value)}
-                placeholder="Cerca nome carta (es. 'Fulmine', 'Contromagia', 'Foudre', 'Lightning Bolt')..."
-                className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors shadow-inner"
+                placeholder={t("scryfall.searchPlaceholder")}
+                className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-400 focus:outline-hidden focus:border-indigo-500 transition-colors shadow-inner"
                 autoFocus
               />
             </div>
@@ -434,7 +432,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
               ) : (
                 <Search className="w-4 h-4" />
               )}
-              <span>Search</span>
+              <span>{t("scryfall.searchBtn")}</span>
             </button>
           </form>
 
@@ -480,7 +478,9 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
           <div className="lg:col-span-5 border border-slate-800 rounded-xl bg-slate-950/50 p-3.5 flex flex-col h-[560px]">
             <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800/80 text-xs text-slate-400">
               <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-300">
-                {searchResults.length > 0 ? `Results (${searchResults.length})` : "Card Results"}
+                {searchResults.length > 0
+                  ? t("scryfall.resultsFound", { count: searchResults.length })
+                  : t("inventory.searchScryfall")}
               </span>
               <span className="text-[10px] text-emerald-400/90 flex items-center gap-1 font-mono">
                 <Database className="w-3 h-3 text-emerald-400" /> SQLite Sync
@@ -491,16 +491,14 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
               {isSearching ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                   <Loader2 className="w-7 h-7 animate-spin text-indigo-400 mb-3" />
-                  <p className="text-xs font-medium">Querying Scryfall API & SQLite Cache...</p>
+                  <p className="text-xs font-medium">{t("scryfall.searching")}</p>
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16 text-center px-4">
                   <Search className="w-10 h-10 text-slate-700 mb-3" />
-                  <p className="text-sm font-semibold text-slate-300">Search for a Magic card above</p>
+                  <p className="text-sm font-semibold text-slate-300">{t("scryfall.selectCardPrompt")}</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                    Try searching for <span className="text-indigo-400">"Lightning Bolt"</span>,{" "}
-                    <span className="text-indigo-400">"Counterspell"</span>, or{" "}
-                    <span className="text-indigo-400">"Black Lotus"</span>.
+                    {t("scryfall.selectCardDesc")}
                   </p>
                 </div>
               ) : (
@@ -619,7 +617,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                   <div
                     className="relative w-52 sm:w-60 aspect-[2.5/3.5] mx-auto sm:mx-0 shrink-0 rounded-xl overflow-hidden border border-slate-700 shadow-xl bg-slate-950 group cursor-pointer hover:border-indigo-500/70 transition-all"
                     onClick={() => setIsImageZoomOpen(true)}
-                    title="Click to zoom card image"
+                    title={t("inventory.clickToZoom")}
                   >
                     <CardImage
                       scryfallId={selectedCard.scryfall_id}
@@ -635,7 +633,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                         <Maximize2 className="w-5 h-5 text-indigo-300" />
                       </div>
                       <span className="text-[11px] font-semibold text-white bg-black/75 px-2 py-0.5 rounded shadow">
-                        Click to Zoom
+                        {t("inventory.clickToZoom")}
                       </span>
                     </div>
 
@@ -647,10 +645,12 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                           setActiveFaceIndex((prev) => (prev === 0 ? 1 : 0));
                         }}
                         className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/85 hover:bg-black text-[10px] text-indigo-300 border border-indigo-500/50 font-semibold flex items-center gap-1 shadow-lg z-10"
-                        title="Switch Card Face"
+                        title={t("common.flipFace")}
                       >
                         <RefreshCw className="w-3 h-3" />
-                        <span>Face {activeFaceIndex + 1}/{parsedFaces.length}</span>
+                        <span>
+                          {t("common.face")} {activeFaceIndex + 1}/{parsedFaces.length}
+                        </span>
                       </button>
                     )}
                   </div>
@@ -721,12 +721,12 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-800">
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                        Editions & Printings ({filteredPrintings.length}
+                        {t("scryfall.printingsHeader")} ({filteredPrintings.length}
                         {filteredPrintings.length !== printings.length && ` of ${printings.length}`})
                       </label>
                       {isLoadingPrintings && (
                         <span className="text-[11px] text-indigo-400 flex items-center gap-1 font-medium">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Loading editions...
+                          <Loader2 className="w-3 h-3 animate-spin" /> {t("scryfall.loadingPrintings")}
                         </span>
                       )}
                     </div>
@@ -741,14 +741,14 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                             : "bg-slate-800 border-slate-700 text-slate-400"
                         }`}
                       >
-                        {paperOnlyFilter ? "Paper Printings Only" : "All Editions"}
+                        {paperOnlyFilter ? t("scryfall.paperOnly") : t("common.all")}
                       </button>
                       <input
                         type="text"
                         value={printingFilterQuery}
                         onChange={(e) => setPrintingFilterQuery(e.target.value)}
-                        placeholder="Filter set/year..."
-                        className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 text-[11px] text-slate-200 w-28 focus:outline-none focus:border-indigo-500"
+                        placeholder={t("scryfall.filterPrintingsPlaceholder")}
+                        className="bg-slate-950 border border-slate-700 rounded px-2 py-0.5 text-[11px] text-slate-200 w-28 focus:outline-hidden focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -757,7 +757,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                   {availableLanguages.length > 1 && (
                     <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto pb-1 scrollbar-thin">
                       <span className="text-[10px] font-semibold text-slate-400 uppercase mr-1 shrink-0">
-                        Editions Language:
+                        {t("common.language")}:
                       </span>
                       <button
                         type="button"
@@ -768,7 +768,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                             : "bg-slate-800 text-slate-400 hover:text-slate-200"
                         }`}
                       >
-                        All ({printings.length})
+                        {t("scryfall.allLanguages")} ({printings.length})
                       </button>
                       {availableLanguages.map((lCode) => {
                         const count = printings.filter(
@@ -859,43 +859,47 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Quantity *
+                      {t("common.quantity")} *
                     </label>
                     <input
                       type="number"
                       min={1}
                       value={quantity}
                       onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-semibold"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500 font-semibold"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Finish</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      {t("common.finish")}
+                    </label>
                     <select
                       value={finish}
                       onChange={(e) => handleFinishChange(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500"
                     >
                       {selectedCard.finishes.includes("nonfoil") && (
-                        <option value="nonfoil">Non-foil</option>
+                        <option value="nonfoil">{t("common.nonfoil")}</option>
                       )}
                       {selectedCard.finishes.includes("foil") && (
-                        <option value="foil">Foil</option>
+                        <option value="foil">{t("common.foil")}</option>
                       )}
                       {selectedCard.finishes.includes("etched") && (
-                        <option value="etched">Etched</option>
+                        <option value="etched">{t("common.etched")}</option>
                       )}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Condition</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      {t("common.condition")}
+                    </label>
                     <select
                       value={condition}
                       onChange={(e) => setCondition(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500"
                     >
                       <option value="NM">Near Mint (NM)</option>
                       <option value="LP">Lightly Played (LP)</option>
@@ -906,11 +910,13 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Language</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      {t("common.language")}
+                    </label>
                     <select
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 uppercase font-mono"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500 uppercase font-mono"
                     >
                       {SUPPORTED_LANGUAGES.filter((l) => l.code !== "any").map((l) => (
                         <option key={l.code} value={l.code}>
@@ -925,7 +931,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Acquisition Price (EUR)
+                      {t("inventory.purchasePriceEur")}
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1.5 text-slate-400 text-xs">€</span>
@@ -934,21 +940,21 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                         value={priceInput}
                         onChange={(e) => setPriceInput(e.target.value)}
                         placeholder="0.00"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-7 pr-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-7 pr-3 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500 font-mono"
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">
-                      Storage Location
+                      {t("scryfall.storageLocation")}
                     </label>
                     <select
                       value={selectedLocationId}
                       onChange={(e) => setSelectedLocationId(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500"
                     >
-                      <option value="">Unassigned</option>
+                      <option value="">{t("common.unassigned")}</option>
                       {locations.map((loc) => (
                         <option key={loc.id} value={loc.id}>
                           {loc.name} ({loc.location_type})
@@ -962,7 +968,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                 {collections.length > 0 && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Assign to Collections
+                      {t("scryfall.targetCollection")}
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                       {collections.map((col) => {
@@ -990,14 +996,14 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                 {/* Notes */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Notes / Remarks (Optional)
+                    {t("inventory.notesOptional")}
                   </label>
                   <input
                     type="text"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="e.g. Near mint, pack fresh, signed by artist"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                    placeholder={t("inventory.notesPlaceholder")}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
 
@@ -1008,7 +1014,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                     onClick={onClose}
                     className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
                   >
-                    Close
+                    {t("common.close")}
                   </button>
                   <button
                     type="submit"
@@ -1020,16 +1026,16 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                     ) : (
                       <Plus className="w-3.5 h-3.5" />
                     )}
-                    <span>Add to Inventory</span>
+                    <span>{t("scryfall.addToInventoryTitle")}</span>
                   </button>
                 </div>
               </form>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16 text-center">
                 <Layers className="w-10 h-10 text-slate-700 mb-3" />
-                <p className="text-sm font-semibold text-slate-300">No card selected</p>
+                <p className="text-sm font-semibold text-slate-300">{t("scryfall.selectCardPrompt")}</p>
                 <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                  Select a card from the results list on the left to browse all its printings and add it to your collection.
+                  {t("scryfall.selectCardDesc")}
                 </p>
               </div>
             )}
