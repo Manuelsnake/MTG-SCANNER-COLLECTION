@@ -5,41 +5,73 @@ This product is licensed under the Apache License, Version 2.0.
 See the LICENSE file for details.
 
 ================================================================================
-Third-Party Software and Attribution Notices
+Current Repository Scope (Milestone 0)
 ================================================================================
 
-1. Cardloader
-   This software contains code derived from Cardloader
-   (https://github.com/ximilar-com/cardloader).
-   Copyright (c) 2024-2026 Ximilar s.r.o.
-   Licensed under the Apache License, Version 2.0.
-
-2. TWAIN Data Source Manager (TWAINDSM)
-   This software interfaces with the 32-bit TWAIN Data Source Manager (TWAINDSM.dll)
-   provided by the TWAIN Working Group (https://github.com/twain/twain-dsm).
-   Copyright (c) TWAIN Working Group.
-   Licensed under the GNU Lesser General Public License (LGPL), Version 2.1.
-   The TWAINDSM component is distributed as an independent, dynamically linked library
-   and is not modified by this project.
-
-3. llama.cpp
-   This software incorporates or interfaces with llama.cpp
-   (https://github.com/ggml-org/llama.cpp) via Rust bindings.
-   Copyright (c) 2023-2026 Georgi Gerganov and contributors.
-   Licensed under the MIT License.
-
-4. Liquid AI (LFM Models)
-   When local vision AI models are downloaded by the user, the LFM model family
-   (LFM2.5-VL) is authored by Liquid AI (https://www.liquid.ai).
-   Model weights are downloaded on demand directly by the user from Hugging Face
-   under the LFM Open License v1.0. Model files are not bundled with this application.
+This repository currently contains only the initial project structure, governance
+documents, and workflow definitions. No third-party compiled binaries, external
+source code modules, or machine learning model weights are bundled or distributed
+in this initial repository state.
 
 ================================================================================
-Wizards of the Coast Fan Content Disclaimer
+Planned Third-Party Components and Architectural Dependencies
 ================================================================================
 
-MTG Collection Manager is unofficial Fan Content permitted under the Fan Content Policy.
-Not approved or endorsed by Wizards of the Coast.
-Portions of the materials used (including card names, mana symbols, oracle text, and
-card artwork) are property of Wizards of the Coast LLC, a subsidiary of Hasbro, Inc.
-(c) Wizards of the Coast LLC.
+The architectural design of MTG Collection Manager anticipates extracting,
+adapting, or interfacing with the following external third-party components in
+future development milestones:
+
+1. Cardloader (Planned extraction in future milestones)
+   - Origin: https://github.com/ximilar-com/cardloader
+   - Copyright (c) 2024-2026 Ximilar s.r.o.
+   - License: Apache License, Version 2.0
+   - Planned use: Selected modular components (e.g. TWAIN sidecar and download
+     routines) will be evaluated and adapted. When integrated, original copyright
+     notices and file-level modification notices will be preserved in the respective
+     source files as required by Section 4(b) and 4(c) of Apache-2.0.
+
+2. TWAIN Data Source Manager (Planned runtime dependency on Windows)
+   - Origin: https://github.com/twain/twain-dsm
+   - Copyright (c) TWAIN Working Group
+   - License: GNU Lesser General Public License (LGPL), Version 2.1
+   - Planned use: The Windows TWAIN helper sidecar plans to dynamically load
+     the official 32-bit TWAINDSM.dll at runtime. The TWAINDSM binary is not
+     currently bundled in this repository.
+
+3. llama.cpp (Planned local inference engine)
+   - Origin: https://github.com/ggml-org/llama.cpp
+   - Copyright (c) 2023-2026 Georgi Gerganov and contributors
+   - License: MIT License
+   - Planned use: Future integration via Rust bindings (llama-cpp-2) for optional
+     local vision-language model inference. Not currently compiled or included.
+
+4. Liquid AI LFM Models (Planned optional user downloads)
+   - Origin: https://www.liquid.ai / Hugging Face (LiquidAI)
+   - License: LFM Open License v1.0
+   - Planned use: Supported as an optional on-demand download initiated directly
+     by the user. Model weights are never bundled with this project's source code
+     or distributed installers.
+
+================================================================================
+Wizards of the Coast Official Fan Content Disclaimer
+================================================================================
+
+Wizards of the Coast, Magic: The Gathering, and their logos are trademarks of
+Wizards of the Coast LLC in the United States and other countries.
+(c) 1993-2026 Wizards. All Rights Reserved.
+
+MTG Collection Manager is not affiliated with, endorsed, sponsored, or
+specifically approved by Wizards of the Coast LLC. MTG Collection Manager
+may use the trademarks and other intellectual property of Wizards of the Coast
+LLC, which is permitted under Wizards' Fan Content Policy:
+https://company.wizards.com/en/legal/fancontentpolicy
+
+For more information about Wizards of the Coast or any of Wizards' trademarks
+or other intellectual property, please visit their website at:
+https://company.wizards.com/
+
+This application is an independent, unofficial software tool for collection
+cataloguing. Original software code created by the MTG Collection Manager
+project is copyrighted by its contributors under the Apache License, Version 2.0,
+and does not claim ownership of any intellectual property belonging to Wizards
+of the Coast LLC.

@@ -1,4 +1,4 @@
-name: CI - Project Integrity & Quality Checks
+name: CI - Governance, Security & Documentation Checks
 
 on:
   push:
@@ -7,31 +7,69 @@ on:
     branches: [ main ]
 
 jobs:
-  integrity-checks:
-    name: Repository Integrity & Linting
+  governance-and-security:
+    name: Repository Governance & Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history required for secret scanning
+
+      - name: Verify Documentation & License Files
+        run: |
+          test -s LICENSE || (echo "ERROR: LICENSE file is missing or empty" && exit 1)
+          test -s NOTICE || (echo "ERROR: NOTICE file is missing or empty" && exit 1)
+          test -s README.md || (echo "ERROR: README.md file is missing or empty" && exit 1)
+          test -s README.it.md || (echo "ERROR: README.it.md file is missing or empty" && exit 1)
+          echo "Check passed: All core governance files are present and populated."
+
+      - name: Verify No Forbidden Binary or Sensitive Files Tracked by Git
+        run: |
+          # Use git ls-files to inspect ONLY files actually tracked by version control,
+          # avoiding false alarms from local workspace scratch files.
+          FORBIDDEN=$(git ls-files \
+            '*.gguf' '*.bin' '*.safetensors' '*.onnx' \
+            '*.db' '*.db-wal' '*.db-shm' '*.sqlite' '*.sqlite3' \
+            '*.pfx' '*.p12' '*.key' '*.pem' '*.cert' \
+            '*.png' '*.jpg' '*.jpeg' '*.bmp' '*.tif' '*.tiff' '*.webp' '*.raw' '*.dng' \
+            ':!docs/assets/*' ':!assets/*')
+          if [ -n "$FORBIDDEN" ]; then
+            echo "ERROR: The following forbidden binary, scan, or secret files are tracked in Git:"
+            echo "$FORBIDDEN"
+            exit 1
+          fi
+          echo "Check passed: No forbidden binary or secret files are tracked by Git."
+
+      - name: Run Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Gitleaks scans commit history for hardcoded tokens, API keys and credentials.
+
+  documentation-lint-and-links:
+    name: Markdown Linting & Link Validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify License and Notice Presence
-        run: |
-          test -f LICENSE || (echo "LICENSE file missing" && exit 1)
-          test -f NOTICE || (echo "NOTICE file missing" && exit 1)
-          test -f README.md || (echo "README.md file missing" && exit 1)
-          test -f README.it.md || (echo "README.it.md file missing" && exit 1)
-          echo "All essential governance files are present."
+      - name: Markdown Linting (markdownlint-cli2)
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: "**/*.md"
 
-      - name: Verify No Secrets or Heavy Files Tracked
-        run: |
-          # Check that no GGUF models or private keys are accidentally committed
-          ! find . -type f \( -name "*.gguf" -o -name "*.pfx" -o -name "*.p12" -o -name "*.db" \) | grep -v '^./\.' || \
-            (echo "Forbidden files committed into repository" && exit 1)
-          echo "No forbidden binary or secret files found."
-
-      - name: Markdown Linting & Link Check
-        run: |
-          # Check markdown syntax cleanliness
-          grep -q "MTG Collection Manager" README.md || exit 1
-          grep -q "MTG Collection Manager" README.it.md || exit 1
-          echo "Documentation verification passed."
+      - name: Markdown Link Checker (Lychee)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Verify local document references and standard web links.
+          # Corporate endpoints (e.g. company.wizards.com) use Cloudflare/Akamai bot protection
+          # which blocks automated headless CI runners with HTTP 403; we exclude them to prevent false negatives.
+          args: >-
+            --verbose
+            --no-progress
+            --exclude "https://company.wizards.com/.*"
+            --exclude "https://img.shields.io/.*"
+            README.md README.it.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

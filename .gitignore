@@ -56,7 +56,7 @@ src-tauri/binaries/*
 collection.db*
 scryfall_cache.db*
 
-# --- AI Models & Weights (Downloaded On-Demand) ---
+# --- AI Models & Weights (Downloaded On-Demand by User) ---
 models/
 **/*.gguf
 **/*.bin
@@ -70,17 +70,31 @@ crops/
 temp/
 debug/
 captures/
+Ritagli/
+Scansioni/
+scansioni/
 *.tmp
 *.png
 *.jpg
 *.jpeg
 *.bmp
+*.tif
 *.tiff
 *.webp
-!docs/assets/**
-!assets/**
+*.pnm
+*.pbm
+*.ppm
+*.raw
+*.dng
+*.cr2
+*.nef
+*.arw
 debug_capture.png
 *.log
+
+# Explicit exceptions for approved project documentation assets
+!docs/assets/**
+!assets/**
 
 # --- Secrets, Credentials & Certificates ---
 .env
