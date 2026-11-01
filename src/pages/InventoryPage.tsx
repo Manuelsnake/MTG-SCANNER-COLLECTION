@@ -354,13 +354,20 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
               <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
                 <div>
                   <div className="flex items-start justify-between gap-1">
-                    <h4
-                      className="font-bold text-slate-100 text-xs truncate leading-tight cursor-pointer hover:text-indigo-400 transition-colors"
-                      onClick={() => setZoomItem(item)}
-                      title={item.card_name}
-                    >
-                      {item.card_name}
-                    </h4>
+                    <div className="min-w-0 flex-1">
+                      <h4
+                        className="font-bold text-slate-100 text-xs truncate leading-tight cursor-pointer hover:text-indigo-400 transition-colors"
+                        onClick={() => setZoomItem(item)}
+                        title={item.printed_name ? `${item.printed_name} (${item.card_name})` : item.card_name}
+                      >
+                        {item.printed_name || item.card_name}
+                      </h4>
+                      {item.printed_name && item.printed_name !== item.card_name && (
+                        <p className="text-[10px] text-slate-400 truncate italic">
+                          {item.card_name}
+                        </p>
+                      )}
+                    </div>
                     {item.mana_cost && (
                       <span className="font-mono text-[10px] text-indigo-300 font-semibold shrink-0">
                         {item.mana_cost}
@@ -459,12 +466,15 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
                 <p
                   className="font-bold text-slate-100 truncate cursor-pointer hover:text-indigo-400"
                   onClick={() => setZoomItem(item)}
-                  title={item.card_name}
+                  title={item.printed_name ? `${item.printed_name} (${item.card_name})` : item.card_name}
                 >
-                  {item.card_name}
+                  {item.printed_name || item.card_name}
                 </p>
                 <div className="flex items-center justify-between text-slate-400 text-[10px] mt-0.5">
-                  <span className="font-mono text-indigo-400 uppercase">{item.set_code}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-indigo-400 uppercase">{item.set_code}</span>
+                    <span className="font-mono uppercase text-[9px] text-slate-400">[{item.language}]</span>
+                  </div>
                   <span className="font-mono text-slate-300">{formatPrice(item.purchase_price)}</span>
                 </div>
               </div>
@@ -509,13 +519,18 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
                           />
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span
                               className="font-bold text-slate-100 cursor-pointer hover:text-indigo-400 transition-colors"
                               onClick={() => setZoomItem(item)}
                             >
-                              {item.card_name}
+                              {item.printed_name || item.card_name}
                             </span>
+                            {item.printed_name && item.printed_name !== item.card_name && (
+                              <span className="text-[11px] text-slate-400 italic">
+                                ({item.card_name})
+                              </span>
+                            )}
                             {item.mana_cost && (
                               <span className="text-[10px] font-mono text-indigo-400 shrink-0 font-bold">
                                 {item.mana_cost}

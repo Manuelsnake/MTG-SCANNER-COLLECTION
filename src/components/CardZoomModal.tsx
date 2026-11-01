@@ -21,11 +21,16 @@ export const CardZoomModal: React.FC<CardZoomModalProps> = ({
     item.collection_ids.includes(c.id)
   );
 
+  const modalTitle =
+    item.printed_name && item.printed_name !== item.card_name
+      ? `${item.printed_name} (${item.card_name})`
+      : item.card_name;
+
   return (
     <Modal
       isOpen={!!item}
       onClose={onClose}
-      title={item.card_name}
+      title={modalTitle}
       maxWidth="max-w-2xl"
     >
       <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
@@ -43,10 +48,19 @@ export const CardZoomModal: React.FC<CardZoomModalProps> = ({
         {/* Card Metadata */}
         <div className="flex-1 space-y-4 text-xs w-full">
           <div>
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-lg font-bold text-slate-100">{item.card_name}</h3>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-bold text-slate-100">
+                  {item.printed_name || item.card_name}
+                </h3>
+                {item.printed_name && item.printed_name !== item.card_name && (
+                  <p className="text-xs text-indigo-300 italic mt-0.5">
+                    Oracle Name: <span className="text-slate-200 font-semibold">{item.card_name}</span>
+                  </p>
+                )}
+              </div>
               {item.mana_cost && (
-                <span className="font-mono text-sm px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-bold">
+                <span className="font-mono text-sm px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-bold shrink-0">
                   {item.mana_cost}
                 </span>
               )}

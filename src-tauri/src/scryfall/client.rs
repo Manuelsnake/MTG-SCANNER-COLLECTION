@@ -144,11 +144,12 @@ impl<T: ScryfallTransport> ScryfallClient<T> {
         Ok(parsed.data)
     }
 
-    /// Search cards by query syntax or card name
+    /// Search cards by query syntax or card name, with optional language restriction and multilingual inclusion
     pub async fn search_cards(
         &self,
         query: &str,
         page: u32,
+        lang: Option<&str>,
     ) -> AppResult<ScryfallList<ScryfallCard>> {
         let trimmed = query.trim();
         if trimmed.is_empty() {
@@ -161,9 +162,17 @@ impl<T: ScryfallTransport> ScryfallClient<T> {
             });
         }
 
+        let mut final_query = trimmed.to_string();
+        if let Some(l) = lang {
+            let clean_lang = l.trim().to_lowercase();
+            if !clean_lang.is_empty() && clean_lang != "any" && !trimmed.contains("lang:") {
+                final_query = format!("lang:{clean_lang} {trimmed}");
+            }
+        }
+
         let p = if page == 0 { 1 } else { page };
-        let encoded = urlencoding::encode(trimmed);
-        let url = format!("{BASE_URL}/cards/search?q={encoded}&unique=cards&order=name&page={p}");
+        let encoded = urlencoding::encode(&final_query);
+        let url = format!("{BASE_URL}/cards/search?q={encoded}&unique=cards&order=name&page={p}&include_multilingual=true");
 
         let raw = self.transport.get(&url).await?;
         let list: ScryfallList<ScryfallCard> = serde_json::from_str(&raw).map_err(|e| {
@@ -173,12 +182,12 @@ impl<T: ScryfallTransport> ScryfallClient<T> {
         Ok(list)
     }
 
-    /// Retrieve all printings of a card given its oracle_id, supporting pagination
+    /// Retrieve all printings of a card given its oracle_id, supporting pagination and multilingual printings
     pub async fn get_printings(&self, oracle_id: &str) -> AppResult<Vec<ScryfallCard>> {
         let trimmed = oracle_id.trim();
         let encoded = urlencoding::encode(trimmed);
         let mut next_url = Some(format!(
-            "{BASE_URL}/cards/search?q=oracle_id%3A{encoded}&unique=prints&order=released&dir=desc"
+            "{BASE_URL}/cards/search?q=oracle_id%3A{encoded}&unique=prints&order=released&dir=desc&include_multilingual=true"
         ));
 
         let mut all_printings = Vec::new();
@@ -208,7 +217,7 @@ impl<T: ScryfallTransport> ScryfallClient<T> {
         let trimmed = query.trim();
         let encoded = urlencoding::encode(trimmed);
         let mut next_url = Some(format!(
-            "{BASE_URL}/cards/search?q={encoded}&unique=prints&order=released&dir=desc"
+            "{BASE_URL}/cards/search?q={encoded}&unique=prints&order=released&dir=desc&include_multilingual=true"
         ));
 
         let mut all_printings = Vec::new();
@@ -233,11 +242,25 @@ impl<T: ScryfallTransport> ScryfallClient<T> {
         Ok(all_printings)
     }
 
-    /// Retrieve exact card printing by set code and collector number
-    pub async fn get_card_by_set_number(&self, set: &str, number: &str) -> AppResult<ScryfallCard> {
+    /// Retrieve exact card printing by set code, collector number, and optional language
+    pub async fn get_card_by_set_number_lang(
+        &self,
+        set: &str,
+        number: &str,
+        lang: Option<&str>,
+    ) -> AppResult<ScryfallCard> {
         let s = set.trim().to_lowercase();
         let n = number.trim();
-        let url = format!("{BASE_URL}/cards/{s}/{n}");
+        let url = if let Some(l) = lang {
+            let clean_lang = l.trim().to_lowercase();
+            if !clean_lang.is_empty() && clean_lang != "en" && clean_lang != "any" {
+                format!("{BASE_URL}/cards/{s}/{n}/{clean_lang}")
+            } else {
+                format!("{BASE_URL}/cards/{s}/{n}")
+            }
+        } else {
+            format!("{BASE_URL}/cards/{s}/{n}")
+        };
 
         let raw = self.transport.get(&url).await?;
         let card: ScryfallCard = serde_json::from_str(&raw).map_err(|e| {
@@ -245,6 +268,11 @@ impl<T: ScryfallTransport> ScryfallClient<T> {
         })?;
 
         Ok(card)
+    }
+
+    /// Retrieve exact card printing by set code and collector number (defaults to English)
+    pub async fn get_card_by_set_number(&self, set: &str, number: &str) -> AppResult<ScryfallCard> {
+        self.get_card_by_set_number_lang(set, number, None).await
     }
 
     /// Retrieve card by exact Scryfall UUID

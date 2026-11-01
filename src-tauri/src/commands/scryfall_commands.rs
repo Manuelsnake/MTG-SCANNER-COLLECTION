@@ -17,9 +17,12 @@ pub async fn scryfall_autocomplete(
 pub async fn scryfall_search(
     query: String,
     page: Option<u32>,
+    lang: Option<String>,
     service: State<'_, Arc<CardIdentificationService>>,
 ) -> AppResult<Vec<ScryfallSearchResult>> {
-    service.search_cards(&query, page.unwrap_or(1)).await
+    service
+        .search_cards(&query, page.unwrap_or(1), lang.as_deref())
+        .await
 }
 
 #[tauri::command]
@@ -42,9 +45,10 @@ pub async fn scryfall_get_printings_by_name(
 pub async fn scryfall_get_card(
     set_code: String,
     collector_number: String,
+    lang: Option<String>,
     service: State<'_, Arc<CardIdentificationService>>,
 ) -> AppResult<ScryfallCard> {
     service
-        .identify_by_set_and_number(&set_code, &collector_number)
+        .identify_by_set_and_number_lang(&set_code, &collector_number, lang.as_deref())
         .await
 }

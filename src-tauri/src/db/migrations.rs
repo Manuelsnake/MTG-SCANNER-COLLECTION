@@ -4,7 +4,7 @@ use rusqlite::{params, Connection, Transaction};
 
 use crate::db::schema::{
     CREATE_MIGRATIONS_TABLE, MIGRATION_001_INITIAL_SCHEMA, MIGRATION_002_SCRYFALL_CACHE,
-    MIGRATION_003_IMAGE_METADATA_AND_SYNC,
+    MIGRATION_003_IMAGE_METADATA_AND_SYNC, MIGRATION_004_MULTILINGUAL_SUPPORT,
 };
 use crate::error::{AppError, AppResult};
 
@@ -30,9 +30,18 @@ pub const ALL_MIGRATIONS: &[Migration] = &[
         name: "003_image_metadata_and_sync",
         sql: MIGRATION_003_IMAGE_METADATA_AND_SYNC,
     },
+    Migration {
+        version: 4,
+        name: "004_multilingual_support",
+        sql: MIGRATION_004_MULTILINGUAL_SUPPORT,
+    },
 ];
 
 pub fn run_migrations(conn: &mut Connection) -> AppResult<i64> {
+    // Disable foreign keys during migration execution so tables can be rebuilt cleanly
+    conn.execute_batch("PRAGMA foreign_keys = OFF;")
+        .map_err(|e| AppError::Migration(format!("Failed to disable foreign keys: {e}")))?;
+
     // 1. Ensure migrations tracking table exists
     conn.execute_batch(CREATE_MIGRATIONS_TABLE)
         .map_err(|e| AppError::Migration(format!("Failed to create migrations table: {e}")))?;
@@ -72,6 +81,9 @@ pub fn run_migrations(conn: &mut Connection) -> AppResult<i64> {
             current_version = migration.version;
         }
     }
+
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|e| AppError::Migration(format!("Failed to re-enable foreign keys: {e}")))?;
 
     Ok(current_version)
 }

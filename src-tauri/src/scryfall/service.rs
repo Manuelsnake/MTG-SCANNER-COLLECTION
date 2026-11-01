@@ -31,11 +31,12 @@ impl<T: ScryfallTransport> CardIdentificationService<T> {
         self.client.autocomplete(query).await
     }
 
-    /// Search cards by query syntax or name, using cache where appropriate
+    /// Search cards by query syntax or name, using cache where appropriate, supporting multilingual search
     pub async fn search_cards(
         &self,
         query: &str,
         page: u32,
+        lang: Option<&str>,
     ) -> AppResult<Vec<ScryfallSearchResult>> {
         let trimmed = query.trim();
         if trimmed.is_empty() {
@@ -45,7 +46,7 @@ impl<T: ScryfallTransport> CardIdentificationService<T> {
         // Try local cache search first for instant results
         {
             let conn = self.db_conn.lock().unwrap();
-            let cached_results = ScryfallCache::search_by_name(&conn, trimmed)?;
+            let cached_results = ScryfallCache::search_by_name(&conn, trimmed, lang)?;
             if !cached_results.is_empty() && page <= 1 {
                 return Ok(cached_results
                     .iter()
@@ -54,8 +55,8 @@ impl<T: ScryfallTransport> CardIdentificationService<T> {
             }
         }
 
-        // Fetch from Scryfall API
-        let response = self.client.search_cards(trimmed, page).await?;
+        // Fetch from Scryfall API with multilingual inclusion
+        let response = self.client.search_cards(trimmed, page, lang).await?;
 
         // Cache fetched cards in SQLite
         if !response.data.is_empty() {
@@ -144,16 +145,18 @@ impl<T: ScryfallTransport> CardIdentificationService<T> {
         Ok(results)
     }
 
-    /// Identify a specific card by set code and collector number (used by OCR, Webcam, Flatbed & Manual)
-    pub async fn identify_by_set_and_number(
+    /// Identify a specific card by set code, collector number, and optional language
+    pub async fn identify_by_set_and_number_lang(
         &self,
         set_code: &str,
         collector_number: &str,
+        lang: Option<&str>,
     ) -> AppResult<ScryfallCard> {
         // 1. Check local cache
         {
             let conn = self.db_conn.lock().unwrap();
-            if let Some(card) = ScryfallCache::get_by_set_number(&conn, set_code, collector_number)?
+            if let Some(card) =
+                ScryfallCache::get_by_set_number_lang(&conn, set_code, collector_number, lang)?
             {
                 return Ok(card);
             }
@@ -162,7 +165,7 @@ impl<T: ScryfallTransport> CardIdentificationService<T> {
         // 2. Fetch from Scryfall API
         let card = self
             .client
-            .get_card_by_set_number(set_code, collector_number)
+            .get_card_by_set_number_lang(set_code, collector_number, lang)
             .await?;
 
         // 3. Cache
@@ -172,6 +175,16 @@ impl<T: ScryfallTransport> CardIdentificationService<T> {
         }
 
         Ok(card)
+    }
+
+    /// Identify a specific card by set code and collector number (defaults to English)
+    pub async fn identify_by_set_and_number(
+        &self,
+        set_code: &str,
+        collector_number: &str,
+    ) -> AppResult<ScryfallCard> {
+        self.identify_by_set_and_number_lang(set_code, collector_number, None)
+            .await
     }
 
     /// Identify a card by exact or fuzzy name

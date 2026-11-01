@@ -9,7 +9,7 @@ fn test_database_creation_and_migration_execution() {
     let db = Database::init_file(tmp.path()).expect("Failed to init db");
 
     let info = db.get_info().expect("Failed to get info");
-    assert_eq!(info.schema_version, 3);
+    assert_eq!(info.schema_version, 4);
     assert_eq!(info.integrity_status, "ok");
     assert_eq!(info.cards_count, 0);
     assert_eq!(info.inventory_count, 0);
@@ -475,7 +475,7 @@ fn test_milestone_1_acceptance_lifecycle() {
         let info = db
             .get_info()
             .expect("Step 10 failed: get db info after restart");
-        assert_eq!(info.schema_version, 3);
+        assert_eq!(info.schema_version, 4);
         assert_eq!(info.integrity_status, "ok");
         assert_eq!(info.cards_count, 1);
         assert_eq!(info.printings_count, 1);

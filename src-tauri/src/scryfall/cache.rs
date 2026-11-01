@@ -34,23 +34,39 @@ impl ScryfallCache {
         Ok(None)
     }
 
-    /// Retrieve a cached card by set code and collector number
-    pub fn get_by_set_number(
+    /// Retrieve a cached card by set code, collector number, and optional language
+    pub fn get_by_set_number_lang(
         conn: &Connection,
         set_code: &str,
         collector_number: &str,
+        lang: Option<&str>,
     ) -> AppResult<Option<ScryfallCard>> {
         let now = Utc::now().to_rfc3339();
         let s = set_code.trim().to_lowercase();
         let n = collector_number.trim();
 
-        let raw_json: Option<String> = conn
-            .query_row(
+        let raw_json: Option<String> = if let Some(l) = lang {
+            let clean = l.trim().to_lowercase();
+            if !clean.is_empty() && clean != "any" {
+                conn.query_row(
+                    "SELECT raw_json FROM scryfall_cache WHERE LOWER(set_code) = ?1 AND collector_number = ?2 AND lang = ?3 AND expires_at > ?4",
+                    params![s, n, clean, now],
+                    |row| row.get(0),
+                ).optional()?
+            } else {
+                conn.query_row(
+                    "SELECT raw_json FROM scryfall_cache WHERE LOWER(set_code) = ?1 AND collector_number = ?2 AND expires_at > ?3",
+                    params![s, n, now],
+                    |row| row.get(0),
+                ).optional()?
+            }
+        } else {
+            conn.query_row(
                 "SELECT raw_json FROM scryfall_cache WHERE LOWER(set_code) = ?1 AND collector_number = ?2 AND expires_at > ?3",
                 params![s, n, now],
                 |row| row.get(0),
-            )
-            .optional()?;
+            ).optional()?
+        };
 
         if let Some(json) = raw_json {
             if let Ok(card) = serde_json::from_str::<ScryfallCard>(&json) {
@@ -60,6 +76,15 @@ impl ScryfallCache {
         }
 
         Ok(None)
+    }
+
+    /// Retrieve a cached card by set code and collector number
+    pub fn get_by_set_number(
+        conn: &Connection,
+        set_code: &str,
+        collector_number: &str,
+    ) -> AppResult<Option<ScryfallCard>> {
+        Self::get_by_set_number_lang(conn, set_code, collector_number, None)
     }
 
     /// Retrieve all cached printings for a given oracle_id
@@ -113,8 +138,12 @@ impl ScryfallCache {
         Ok(())
     }
 
-    /// Search cached cards by normalized name
-    pub fn search_by_name(conn: &Connection, query: &str) -> AppResult<Vec<ScryfallCard>> {
+    /// Search cached cards by normalized name and optional language
+    pub fn search_by_name(
+        conn: &Connection,
+        query: &str,
+        lang: Option<&str>,
+    ) -> AppResult<Vec<ScryfallCard>> {
         let now = Utc::now().to_rfc3339();
         let norm = query.trim().to_lowercase();
         if norm.is_empty() {
@@ -122,23 +151,60 @@ impl ScryfallCache {
         }
 
         let pattern = format!("%{norm}%");
-        let mut stmt = conn.prepare(
-            r#"
-            SELECT raw_json FROM scryfall_cache 
-            WHERE name_normalized LIKE ?1 AND expires_at > ?2
-            GROUP BY oracle_id
-            ORDER BY name ASC
-            LIMIT 30
-            "#,
-        )?;
+        let (sql, use_lang) = if let Some(l) = lang {
+            let clean = l.trim().to_lowercase();
+            if !clean.is_empty() && clean != "any" {
+                (
+                    r#"
+                    SELECT raw_json FROM scryfall_cache 
+                    WHERE (name_normalized LIKE ?1 OR (printed_name_normalized IS NOT NULL AND printed_name_normalized LIKE ?1))
+                      AND lang = ?2
+                      AND expires_at > ?3
+                    GROUP BY oracle_id
+                    ORDER BY name ASC
+                    LIMIT 40
+                    "#,
+                    Some(clean),
+                )
+            } else {
+                (
+                    r#"
+                    SELECT raw_json FROM scryfall_cache 
+                    WHERE (name_normalized LIKE ?1 OR (printed_name_normalized IS NOT NULL AND printed_name_normalized LIKE ?1))
+                      AND expires_at > ?2
+                    GROUP BY oracle_id
+                    ORDER BY name ASC
+                    LIMIT 40
+                    "#,
+                    None,
+                )
+            }
+        } else {
+            (
+                r#"
+                SELECT raw_json FROM scryfall_cache 
+                WHERE (name_normalized LIKE ?1 OR (printed_name_normalized IS NOT NULL AND printed_name_normalized LIKE ?1))
+                  AND expires_at > ?2
+                GROUP BY oracle_id
+                ORDER BY name ASC
+                LIMIT 40
+                "#,
+                None,
+            )
+        };
 
-        let cards = stmt
-            .query_map(params![pattern, now], |row| {
-                let json: String = row.get(0)?;
-                Ok(json)
-            })?
-            .filter_map(Result::ok)
-            .filter_map(|json| serde_json::from_str::<ScryfallCard>(&json).ok())
+        let mut stmt = conn.prepare(sql)?;
+        let json_strings: Vec<String> = if let Some(l) = use_lang {
+            let rows = stmt.query_map(params![pattern, l, now], |row| row.get::<_, String>(0))?;
+            rows.filter_map(Result::ok).collect()
+        } else {
+            let rows = stmt.query_map(params![pattern, now], |row| row.get::<_, String>(0))?;
+            rows.filter_map(Result::ok).collect()
+        };
+
+        let cards = json_strings
+            .iter()
+            .filter_map(|json| serde_json::from_str::<ScryfallCard>(json).ok())
             .collect();
 
         Ok(cards)
@@ -159,18 +225,26 @@ impl ScryfallCache {
         let finishes_json =
             serde_json::to_string(&card.finishes).unwrap_or_else(|_| "[]".to_string());
 
+        let lang_code = card.lang.as_deref().unwrap_or("en").trim().to_lowercase();
+        let printed_norm = card
+            .printed_name
+            .as_deref()
+            .map(|s| s.trim().to_lowercase());
+
         conn.execute(
             r#"
             INSERT OR REPLACE INTO scryfall_cache (
                 scryfall_id, oracle_id, name, name_normalized, set_code, collector_number,
                 set_name, released_at, rarity, mana_cost, type_line, colors,
                 image_small, image_normal, image_large, image_art_crop,
-                finishes, price_eur, price_eur_foil, raw_json, cached_at, expires_at
+                finishes, price_eur, price_eur_foil, raw_json, cached_at, expires_at,
+                lang, printed_name, printed_name_normalized
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6,
                 ?7, ?8, ?9, ?10, ?11, ?12,
                 ?13, ?14, ?15, ?16,
-                ?17, ?18, ?19, ?20, ?21, ?22
+                ?17, ?18, ?19, ?20, ?21, ?22,
+                ?23, ?24, ?25
             )
             "#,
             params![
@@ -195,7 +269,10 @@ impl ScryfallCache {
                 card.get_eur_foil_cents(),
                 raw_json,
                 cached_at,
-                expires_at
+                expires_at,
+                lang_code,
+                card.printed_name,
+                printed_norm
             ],
         )?;
 
@@ -223,18 +300,26 @@ impl ScryfallCache {
             let finishes_json =
                 serde_json::to_string(&card.finishes).unwrap_or_else(|_| "[]".to_string());
 
+            let lang_code = card.lang.as_deref().unwrap_or("en").trim().to_lowercase();
+            let printed_norm = card
+                .printed_name
+                .as_deref()
+                .map(|s| s.trim().to_lowercase());
+
             tx.execute(
                 r#"
                 INSERT OR REPLACE INTO scryfall_cache (
                     scryfall_id, oracle_id, name, name_normalized, set_code, collector_number,
                     set_name, released_at, rarity, mana_cost, type_line, colors,
                     image_small, image_normal, image_large, image_art_crop,
-                    finishes, price_eur, price_eur_foil, raw_json, cached_at, expires_at
+                    finishes, price_eur, price_eur_foil, raw_json, cached_at, expires_at,
+                    lang, printed_name, printed_name_normalized
                 ) VALUES (
                     ?1, ?2, ?3, ?4, ?5, ?6,
                     ?7, ?8, ?9, ?10, ?11, ?12,
                     ?13, ?14, ?15, ?16,
-                    ?17, ?18, ?19, ?20, ?21, ?22
+                    ?17, ?18, ?19, ?20, ?21, ?22,
+                    ?23, ?24, ?25
                 )
                 "#,
                 params![
@@ -259,7 +344,10 @@ impl ScryfallCache {
                     card.get_eur_foil_cents(),
                     raw_json,
                     cached_at,
-                    expires_at
+                    expires_at,
+                    lang_code,
+                    card.printed_name,
+                    printed_norm
                 ],
             )?;
         }

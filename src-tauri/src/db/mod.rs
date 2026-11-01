@@ -446,6 +446,7 @@ impl Database {
             card_id,
             scryfall_id: None,
             card_name: card_name.to_string(),
+            printed_name: None,
             set_code,
             collector_number: collector_number.to_string(),
             set_name: set_name.to_string(),
@@ -534,11 +535,15 @@ impl Database {
         };
 
         // 2. Resolve or create printing
+        let lang = input.language.trim().to_lowercase();
+        let finish = input.finish.trim().to_lowercase();
+        let condition = input.condition.trim().to_uppercase();
+
         let printing_id: String = {
             let existing: Option<String> = tx
                 .query_row(
-                    "SELECT id FROM printings WHERE set_code = ?1 AND collector_number = ?2",
-                    params![set_code, collector_number],
+                    "SELECT id FROM printings WHERE scryfall_id = ?1 OR (set_code = ?2 AND collector_number = ?3 AND lang = ?4)",
+                    params![input.scryfall_id, set_code, collector_number, lang],
                     |row| row.get(0),
                 )
                 .optional()?;
@@ -556,9 +561,10 @@ impl Database {
                         image_small = COALESCE(?7, image_small),
                         image_art_crop = COALESCE(?8, image_art_crop),
                         card_faces = COALESCE(?9, card_faces),
+                        printed_name = COALESCE(?10, printed_name),
                         image_status = 'available',
-                        updated_at = ?10
-                    WHERE id = ?11
+                        updated_at = ?11
+                    WHERE id = ?12
                     "#,
                     params![
                         input.scryfall_id,
@@ -570,6 +576,7 @@ impl Database {
                         input.image_small,
                         input.image_art_crop,
                         input.card_faces,
+                        input.printed_name,
                         now,
                         id
                     ],
@@ -581,8 +588,8 @@ impl Database {
                 tx.execute(
                     r#"
                     INSERT INTO printings 
-                    (id, card_id, scryfall_id, set_code, collector_number, set_name, release_date, layout, rarity, mana_cost, type_line, image_url, image_small, image_art_crop, card_faces, image_status, created_at, updated_at) 
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 'available', ?16, ?17)
+                    (id, card_id, scryfall_id, set_code, collector_number, set_name, release_date, layout, rarity, mana_cost, type_line, image_url, image_small, image_art_crop, card_faces, lang, printed_name, image_status, created_at, updated_at) 
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, 'available', ?18, ?19)
                     "#,
                     params![
                         new_id,
@@ -600,6 +607,8 @@ impl Database {
                         input.image_small,
                         input.image_art_crop,
                         input.card_faces,
+                        lang,
+                        input.printed_name,
                         now,
                         now
                     ],
@@ -609,9 +618,6 @@ impl Database {
         };
 
         // 3. Resolve existing compatible inventory record or create new
-        let lang = input.language.trim().to_lowercase();
-        let finish = input.finish.trim().to_lowercase();
-        let condition = input.condition.trim().to_uppercase();
         let currency = input
             .currency
             .unwrap_or_else(|| "EUR".to_string())
@@ -651,8 +657,8 @@ impl Database {
                 r#"
                 INSERT INTO inventory_items (
                     id, printing_id, quantity, language, finish, condition, 
-                    purchase_price, currency, location_id, notes, created_at, updated_at
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                    purchase_price, currency, location_id, notes, printed_name, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
                 "#,
                 params![
                     new_inv_id,
@@ -665,6 +671,7 @@ impl Database {
                     currency,
                     input.location_id,
                     input.notes.as_deref().map(str::trim),
+                    input.printed_name,
                     now,
                     now
                 ],
@@ -706,6 +713,7 @@ impl Database {
             card_id,
             scryfall_id: Some(input.scryfall_id),
             card_name: card_name.to_string(),
+            printed_name: input.printed_name,
             set_code,
             collector_number: collector_number.to_string(),
             set_name: set_name.to_string(),
@@ -746,6 +754,7 @@ impl Database {
                 inv.id, inv.printing_id, p.card_id, 
                 COALESCE(p.scryfall_id, sc.scryfall_id) as scryfall_id, 
                 c.name as card_name,
+                COALESCE(inv.printed_name, p.printed_name, sc.printed_name) as printed_name,
                 p.set_code, p.collector_number, p.set_name, 
                 COALESCE(p.rarity, sc.rarity) as rarity, 
                 COALESCE(p.mana_cost, sc.mana_cost) as mana_cost, 
@@ -763,7 +772,7 @@ impl Database {
             JOIN printings p ON inv.printing_id = p.id
             JOIN cards c ON p.card_id = c.id
             LEFT JOIN locations loc ON inv.location_id = loc.id
-            LEFT JOIN scryfall_cache sc ON (p.scryfall_id = sc.scryfall_id OR (LOWER(p.set_code) = LOWER(sc.set_code) AND LOWER(p.collector_number) = LOWER(sc.collector_number)))
+            LEFT JOIN scryfall_cache sc ON (p.scryfall_id = sc.scryfall_id OR (LOWER(p.set_code) = LOWER(sc.set_code) AND LOWER(p.collector_number) = LOWER(sc.collector_number) AND p.lang = sc.lang))
             WHERE 1=1
             "#,
         );
@@ -780,8 +789,9 @@ impl Database {
         if let Some(s) = search {
             let term = s.trim();
             if !term.is_empty() {
-                query.push_str(" AND (LOWER(c.name) LIKE ? OR LOWER(p.set_code) LIKE ? OR LOWER(p.collector_number) LIKE ?)");
+                query.push_str(" AND (LOWER(c.name) LIKE ? OR LOWER(COALESCE(inv.printed_name, p.printed_name, '')) LIKE ? OR LOWER(p.set_code) LIKE ? OR LOWER(p.collector_number) LIKE ?)");
                 let pattern = format!("%{}%", term.to_lowercase());
+                param_values.push(Box::new(pattern.clone()));
                 param_values.push(Box::new(pattern.clone()));
                 param_values.push(Box::new(pattern.clone()));
                 param_values.push(Box::new(pattern));
@@ -798,7 +808,7 @@ impl Database {
 
         let items = stmt
             .query_map(params_slice.as_slice(), |row| {
-                let col_ids_str: Option<String> = row.get(27)?;
+                let col_ids_str: Option<String> = row.get(28)?;
                 let collection_ids = col_ids_str
                     .map(|s| s.split(',').map(|id| id.to_string()).collect())
                     .unwrap_or_default();
@@ -809,29 +819,30 @@ impl Database {
                     card_id: row.get(2)?,
                     scryfall_id: row.get(3)?,
                     card_name: row.get(4)?,
-                    set_code: row.get(5)?,
-                    collector_number: row.get(6)?,
-                    set_name: row.get(7)?,
-                    rarity: row.get(8)?,
-                    mana_cost: row.get(9)?,
-                    image_url: row.get(10)?,
-                    image_small: row.get(11)?,
-                    image_art_crop: row.get(12)?,
-                    card_faces: row.get(13)?,
-                    image_status: row.get(14)?,
+                    printed_name: row.get(5)?,
+                    set_code: row.get(6)?,
+                    collector_number: row.get(7)?,
+                    set_name: row.get(8)?,
+                    rarity: row.get(9)?,
+                    mana_cost: row.get(10)?,
+                    image_url: row.get(11)?,
+                    image_small: row.get(12)?,
+                    image_art_crop: row.get(13)?,
+                    card_faces: row.get(14)?,
+                    image_status: row.get(15)?,
                     local_image_path: None,
-                    quantity: row.get(15)?,
-                    language: row.get(16)?,
-                    finish: row.get(17)?,
-                    condition: row.get(18)?,
-                    acquisition_date: row.get(19)?,
-                    purchase_price: row.get(20)?,
-                    currency: row.get(21)?,
-                    location_id: row.get(22)?,
-                    location_name: row.get(23)?,
-                    notes: row.get(24)?,
-                    created_at: row.get(25)?,
-                    updated_at: row.get(26)?,
+                    quantity: row.get(16)?,
+                    language: row.get(17)?,
+                    finish: row.get(18)?,
+                    condition: row.get(19)?,
+                    acquisition_date: row.get(20)?,
+                    purchase_price: row.get(21)?,
+                    currency: row.get(22)?,
+                    location_id: row.get(23)?,
+                    location_name: row.get(24)?,
+                    notes: row.get(25)?,
+                    created_at: row.get(26)?,
+                    updated_at: row.get(27)?,
                     collection_ids,
                 })
             })?

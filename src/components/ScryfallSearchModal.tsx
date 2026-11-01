@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Database,
   ExternalLink,
+  Globe,
   Layers,
   Loader2,
   Plus,
@@ -15,11 +16,12 @@ import {
 import { Modal } from "./Modal";
 import { CardImage } from "./CardImage";
 import { api } from "../services/api";
-import type {
-  AddScryfallCardInput,
-  CollectionSummary,
-  Location,
-  ScryfallSearchResult,
+import {
+  type AddScryfallCardInput,
+  type CollectionSummary,
+  type Location,
+  type ScryfallSearchResult,
+  SUPPORTED_LANGUAGES,
 } from "../types";
 
 interface ScryfallSearchModalProps {
@@ -38,6 +40,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
   onCardAdded,
 }) => {
   const [query, setQuery] = useState("");
+  const [searchLang, setSearchLang] = useState<string>("any");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -48,6 +51,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
   const [printings, setPrintings] = useState<ScryfallSearchResult[]>([]);
   const [isLoadingPrintings, setIsLoadingPrintings] = useState(false);
   const [printingFilterQuery, setPrintingFilterQuery] = useState("");
+  const [printingLangFilter, setPrintingLangFilter] = useState<string>("all");
   const [paperOnlyFilter, setPaperOnlyFilter] = useState(true);
 
   // Multi-faced / transform card support
@@ -100,6 +104,12 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
     setPrintingFilterQuery("");
+    setPrintingLangFilter("all");
+
+    // Auto-populate card language if available
+    if (card.lang) {
+      setLanguage(card.lang);
+    }
 
     // Auto-populate available finish
     if (card.finishes.includes("nonfoil")) {
@@ -122,7 +132,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
       api.getCardImage(card.scryfall_id, card.image_url || card.image_small, "normal").catch(() => {});
     }
 
-    // Fetch all printings
+    // Fetch all printings (includes multilingual editions)
     setIsLoadingPrintings(true);
     try {
       let prints: ScryfallSearchResult[] = [];
@@ -142,9 +152,11 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
   }, []);
 
   const executeSearch = useCallback(
-    async (searchQuery: string) => {
+    async (searchQuery: string, customLang?: string) => {
       const trimmed = searchQuery.trim();
       if (!trimmed) return;
+
+      const langToUse = customLang !== undefined ? customLang : searchLang;
 
       setShowSuggestions(false);
       setIsSearching(true);
@@ -152,9 +164,10 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
       setSuccessMsg(null);
       setSelectedCard(null);
       setPrintings([]);
+      setPrintingLangFilter("all");
 
       try {
-        const results = await api.scryfallSearch(trimmed);
+        const results = await api.scryfallSearch(trimmed, 1, langToUse !== "any" ? langToUse : null);
         setSearchResults(results);
         if (results.length === 0) {
           setErrorMsg(`No cards found on Scryfall for "${trimmed}".`);
@@ -168,12 +181,17 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
         setIsSearching(false);
       }
     },
-    [handleSelectCard]
+    [handleSelectCard, searchLang]
   );
 
   const handleSelectPrinting = (printing: ScryfallSearchResult) => {
     setSelectedCard(printing);
     setActiveFaceIndex(0);
+
+    // Sync physical language
+    if (printing.lang) {
+      setLanguage(printing.lang);
+    }
 
     // Adapt available finish
     if (printing.finishes.includes(finish)) {
@@ -229,6 +247,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
       scryfall_id: selectedCard.scryfall_id,
       oracle_id: selectedCard.oracle_id,
       card_name: selectedCard.name,
+      printed_name: selectedCard.printed_name || null,
       set_code: selectedCard.set_code,
       collector_number: selectedCard.collector_number,
       set_name: selectedCard.set_name,
@@ -262,7 +281,12 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
         api.getCardImage(selectedCard.scryfall_id, selectedCard.image_url, "normal").catch(() => {});
       }
       await onCardAdded();
-      setSuccessMsg(`Added ${quantity}x "${selectedCard.name}" (${selectedCard.set_code.toUpperCase()} #${selectedCard.collector_number}) to your collection!`);
+      const displayName = selectedCard.printed_name
+        ? `${selectedCard.printed_name} (${selectedCard.name})`
+        : selectedCard.name;
+      setSuccessMsg(
+        `Added ${quantity}x "${displayName}" [${language.toUpperCase()}] (${selectedCard.set_code.toUpperCase()} #${selectedCard.collector_number}) to your collection!`
+      );
       setQuantity(1);
     } catch (err) {
       console.error("Failed to add card from Scryfall:", err);
@@ -283,11 +307,23 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
     return `€${(cents / 100).toFixed(2)}`;
   };
 
-  // Filter printings by paper / search filter
+  // Distinct languages available among the loaded printings
+  const availableLanguages = useMemo(() => {
+    const langs = new Set<string>();
+    printings.forEach((p) => {
+      langs.add((p.lang || "en").toLowerCase());
+    });
+    return Array.from(langs).sort();
+  }, [printings]);
+
+  // Filter printings by paper / search filter / language filter
   const filteredPrintings = useMemo(() => {
     let list = printings;
     if (paperOnlyFilter) {
       list = list.filter((p) => p.is_paper !== false && !p.digital);
+    }
+    if (printingLangFilter !== "all") {
+      list = list.filter((p) => (p.lang || "en").toLowerCase() === printingLangFilter.toLowerCase());
     }
     if (printingFilterQuery.trim()) {
       const q = printingFilterQuery.toLowerCase().trim();
@@ -296,11 +332,12 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
           p.set_code.toLowerCase().includes(q) ||
           p.set_name.toLowerCase().includes(q) ||
           p.collector_number.toLowerCase().includes(q) ||
+          (p.printed_name && p.printed_name.toLowerCase().includes(q)) ||
           (p.released_at && p.released_at.includes(q))
       );
     }
     return list;
-  }, [printings, paperOnlyFilter, printingFilterQuery]);
+  }, [printings, paperOnlyFilter, printingLangFilter, printingFilterQuery]);
 
   // Parse card faces if multi-faced card
   const parsedFaces = useMemo(() => {
@@ -332,22 +369,48 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
       maxWidth="max-w-6xl"
     >
       <div className="space-y-4">
-        {/* Search Bar & Autocomplete */}
+        {/* Search Bar & Autocomplete & Multilingual Selector */}
         <div className="relative">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               executeSearch(query);
             }}
-            className="flex gap-2"
+            className="flex flex-col sm:flex-row gap-2"
           >
+            {/* Language Selector Dropdown */}
+            <div className="relative shrink-0 sm:w-56">
+              <Globe className="absolute left-3 top-3 w-4 h-4 text-indigo-400 pointer-events-none" />
+              <select
+                value={searchLang}
+                onChange={(e) => {
+                  const newLang = e.target.value;
+                  setSearchLang(newLang);
+                  if (query.trim()) {
+                    executeSearch(query, newLang);
+                  }
+                }}
+                className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-9 pr-7 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-medium cursor-pointer shadow-inner appearance-none"
+                title="Search Language Filter"
+              >
+                {SUPPORTED_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.code === "any"
+                      ? "🌐 Any / Tutte le lingue"
+                      : `${l.nativeName} (${l.code.toUpperCase()})`}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-3 pointer-events-none text-slate-500 text-[10px]">▼</div>
+            </div>
+
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => handleQueryChange(e.target.value)}
-                placeholder="Search card name (e.g. 'Lightning Bolt', 'Black Lotus') or syntax (e.g. 'c:u t:instant')..."
+                placeholder="Cerca nome carta (es. 'Fulmine', 'Contromagia', 'Foudre', 'Lightning Bolt')..."
                 className="w-full bg-slate-950 border border-slate-700/80 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors shadow-inner"
                 autoFocus
               />
@@ -355,7 +418,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
             <button
               type="submit"
               disabled={isSearching || !query.trim()}
-              className="px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm flex items-center gap-2 transition-all shadow-md shadow-indigo-600/20"
+              className="px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-600/20 shrink-0"
             >
               {isSearching ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -368,7 +431,7 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
 
           {/* Autocomplete Dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute z-20 left-0 right-28 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl overflow-hidden">
+            <div className="absolute z-20 left-0 sm:left-58 right-0 sm:right-28 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl overflow-hidden">
               {suggestions.map((suggestion, idx) => (
                 <button
                   key={idx}
@@ -457,13 +520,20 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="text-xs font-bold text-slate-100 truncate">{card.name}</p>
+                          <p className="text-xs font-bold text-slate-100 truncate">
+                            {card.printed_name || card.name}
+                          </p>
                           {card.mana_cost && (
                             <span className="text-[10px] font-mono font-bold text-indigo-300 shrink-0">
                               {card.mana_cost}
                             </span>
                           )}
                         </div>
+                        {card.printed_name && card.printed_name !== card.name && (
+                          <p className="text-[10px] text-slate-400 truncate italic">
+                            Oracle: {card.name}
+                          </p>
+                        )}
                         <p className="text-[11px] text-slate-400 truncate mt-0.5">
                           <span className="text-indigo-400 font-mono font-bold uppercase">
                             {card.set_code}
@@ -484,6 +554,11 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                           >
                             {card.rarity}
                           </span>
+                          {card.lang && (
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-500/40 uppercase">
+                              {card.lang}
+                            </span>
+                          )}
                           <span className="text-[11px] text-emerald-400 font-bold ml-auto">
                             {formatPrice(card.price_eur)}
                           </span>
@@ -527,9 +602,16 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-bold text-slate-100 text-base leading-tight">
-                          {selectedCard.name}
-                        </h4>
+                        <div>
+                          <h4 className="font-bold text-slate-100 text-base leading-tight">
+                            {selectedCard.printed_name || selectedCard.name}
+                          </h4>
+                          {selectedCard.printed_name && selectedCard.printed_name !== selectedCard.name && (
+                            <p className="text-xs text-indigo-300 mt-0.5 italic">
+                              Oracle Name: <span className="font-semibold text-slate-200">{selectedCard.name}</span>
+                            </p>
+                          )}
+                        </div>
                         {selectedCard.mana_cost && (
                           <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-bold shrink-0">
                             {selectedCard.mana_cost}
@@ -550,6 +632,11 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                       <span className="capitalize px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-300">
                         {selectedCard.rarity}
                       </span>
+                      {selectedCard.lang && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-500/40 uppercase">
+                          Lang: {selectedCard.lang}
+                        </span>
+                      )}
                       <div className="text-emerald-400 font-semibold text-xs flex items-center gap-1">
                         <span>Market:</span>
                         <span className="font-bold">{formatPrice(selectedCard.price_eur)}</span>
@@ -610,11 +697,51 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Language filter pills for printings */}
+                  {availableLanguages.length > 1 && (
+                    <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto pb-1 scrollbar-thin">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase mr-1 shrink-0">
+                        Editions Language:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPrintingLangFilter("all")}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 transition-colors ${
+                          printingLangFilter === "all"
+                            ? "bg-indigo-600 text-white shadow-xs"
+                            : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        All ({printings.length})
+                      </button>
+                      {availableLanguages.map((lCode) => {
+                        const count = printings.filter(
+                          (p) => (p.lang || "en").toLowerCase() === lCode
+                        ).length;
+                        return (
+                          <button
+                            key={lCode}
+                            type="button"
+                            onClick={() => setPrintingLangFilter(lCode)}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase shrink-0 transition-colors ${
+                              printingLangFilter === lCode
+                                ? "bg-indigo-600 text-white shadow-xs"
+                                : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            {lCode} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Printings Scrollable Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-36 overflow-y-auto pr-1 scrollbar-thin">
                     {filteredPrintings.map((p) => {
                       const isCurrent = p.scryfall_id === selectedCard.scryfall_id;
                       const year = p.released_at ? p.released_at.split("-")[0] : "";
+                      const printingLang = (p.lang || "en").toUpperCase();
                       return (
                         <button
                           key={p.scryfall_id}
@@ -627,21 +754,42 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                           }`}
                         >
                           <div className="flex items-center justify-between w-full">
-                            <span className="font-mono font-bold text-[11px] uppercase">
-                              {p.set_code}
-                            </span>
-                            <span className={`text-[10px] font-mono ${isCurrent ? "text-indigo-200" : "text-slate-400"}`}>
+                            <div className="flex items-center gap-1">
+                              <span className="font-mono font-bold text-[11px] uppercase">
+                                {p.set_code}
+                              </span>
+                              <span
+                                className={`text-[9px] font-mono font-bold px-1 rounded ${
+                                  isCurrent
+                                    ? "bg-white/20 text-white"
+                                    : "bg-indigo-950/80 text-indigo-300 border border-indigo-500/30"
+                                }`}
+                              >
+                                {printingLang}
+                              </span>
+                            </div>
+                            <span
+                              className={`text-[10px] font-mono ${
+                                isCurrent ? "text-indigo-200" : "text-slate-400"
+                              }`}
+                            >
                               #{p.collector_number}
                             </span>
                           </div>
-                          <div className={`text-[11px] truncate w-full mt-0.5 ${isCurrent ? "text-white" : "text-slate-300"}`}>
-                            {p.set_name}
+                          <div
+                            className={`text-[11px] truncate w-full mt-0.5 ${
+                              isCurrent ? "text-white" : "text-slate-300"
+                            }`}
+                          >
+                            {p.printed_name || p.set_name}
                           </div>
                           <div className="flex items-center justify-between w-full mt-1 pt-1 border-t border-slate-800/50 text-[10px]">
                             <span className={isCurrent ? "text-indigo-200" : "text-slate-400"}>
                               {year}
                             </span>
-                            <span className={`font-bold ${isCurrent ? "text-white" : "text-emerald-400"}`}>
+                            <span
+                              className={`font-bold ${isCurrent ? "text-white" : "text-emerald-400"}`}
+                            >
                               {formatPrice(p.price_eur)}
                             </span>
                           </div>
@@ -708,12 +856,11 @@ export const ScryfallSearchModal: React.FC<ScryfallSearchModalProps> = ({
                       onChange={(e) => setLanguage(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 uppercase font-mono"
                     >
-                      <option value="en">English (EN)</option>
-                      <option value="it">Italian (IT)</option>
-                      <option value="de">German (DE)</option>
-                      <option value="fr">French (FR)</option>
-                      <option value="es">Spanish (ES)</option>
-                      <option value="ja">Japanese (JA)</option>
+                      {SUPPORTED_LANGUAGES.filter((l) => l.code !== "any").map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.nativeName} ({l.code.toUpperCase()})
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

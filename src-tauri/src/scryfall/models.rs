@@ -13,6 +13,7 @@ pub struct ScryfallImageUris {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ScryfallCardFace {
     pub name: String,
+    pub printed_name: Option<String>,
     pub mana_cost: Option<String>,
     pub type_line: Option<String>,
     pub oracle_text: Option<String>,
@@ -33,6 +34,7 @@ pub struct ScryfallCard {
     pub id: String,
     pub oracle_id: Option<String>,
     pub name: String,
+    pub printed_name: Option<String>,
     pub lang: Option<String>,
     pub set: String,
     pub set_name: String,
@@ -119,6 +121,7 @@ impl ScryfallCard {
             scryfall_id: self.id.clone(),
             oracle_id: self.oracle_id.clone(),
             name: self.name.clone(),
+            printed_name: self.printed_name.clone(),
             set_code: self.set.to_uppercase(),
             set_name: self.set_name.clone(),
             collector_number: self.collector_number.clone(),
@@ -170,6 +173,7 @@ pub struct ScryfallSearchResult {
     pub scryfall_id: String,
     pub oracle_id: Option<String>,
     pub name: String,
+    pub printed_name: Option<String>,
     pub set_code: String,
     pub set_name: String,
     pub collector_number: String,

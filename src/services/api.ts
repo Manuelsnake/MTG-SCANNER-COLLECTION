@@ -103,8 +103,12 @@ export const api = {
     return await invoke<string[]>("scryfall_autocomplete", { query });
   },
 
-  async scryfallSearch(query: string, page = 1): Promise<ScryfallSearchResult[]> {
-    return await invoke<ScryfallSearchResult[]>("scryfall_search", { query, page });
+  async scryfallSearch(query: string, page = 1, lang?: string | null): Promise<ScryfallSearchResult[]> {
+    return await invoke<ScryfallSearchResult[]>("scryfall_search", {
+      query,
+      page,
+      lang: lang && lang !== "any" ? lang : null,
+    });
   },
 
   async scryfallGetPrintings(oracleId: string): Promise<ScryfallSearchResult[]> {
@@ -115,10 +119,11 @@ export const api = {
     return await invoke<ScryfallSearchResult[]>("scryfall_get_printings_by_name", { cardName });
   },
 
-  async scryfallGetCard(setCode: string, collectorNumber: string): Promise<ScryfallCard> {
+  async scryfallGetCard(setCode: string, collectorNumber: string, lang?: string | null): Promise<ScryfallCard> {
     return await invoke<ScryfallCard>("scryfall_get_card", {
       setCode,
       collectorNumber,
+      lang: lang && lang !== "any" ? lang : null,
     });
   },
 

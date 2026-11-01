@@ -183,7 +183,7 @@ async fn test_card_identification_service_with_mock_and_caching() {
 
     // 2. Search test - first call hits transport
     let results = service
-        .search_cards("Black Lotus", 1)
+        .search_cards("Black Lotus", 1, None)
         .await
         .expect("Search");
     assert_eq!(results.len(), 1);
@@ -194,7 +194,7 @@ async fn test_card_identification_service_with_mock_and_caching() {
 
     // 3. Search test - second call should hit local SQLite cache!
     let cached_results = service
-        .search_cards("Black Lotus", 1)
+        .search_cards("Black Lotus", 1, None)
         .await
         .expect("Cached search");
     assert_eq!(cached_results.len(), 1);
@@ -272,6 +272,7 @@ fn test_add_card_from_scryfall_with_deduplication_and_inventory() {
         scryfall_id: "1920dae4-fb92-4f19-ae4b-eb3276b8dac7".to_string(),
         oracle_id: Some("cc919e99-4c12-421b-a5d9-7607774e1d10".to_string()),
         card_name: "Counterspell".to_string(),
+        printed_name: None,
         set_code: "MH2".to_string(),
         set_name: "Modern Horizons 2".to_string(),
         collector_number: "267".to_string(),
@@ -323,6 +324,7 @@ fn test_add_card_from_scryfall_with_deduplication_and_inventory() {
         scryfall_id: "1920dae4-fb92-4f19-ae4b-eb3276b8dac7".to_string(),
         oracle_id: Some("cc919e99-4c12-421b-a5d9-7607774e1d10".to_string()),
         card_name: "Counterspell".to_string(),
+        printed_name: None,
         set_code: "MH2".to_string(),
         set_name: "Modern Horizons 2".to_string(),
         collector_number: "267".to_string(),
@@ -357,6 +359,7 @@ fn test_add_card_from_scryfall_with_deduplication_and_inventory() {
         scryfall_id: "1920dae4-fb92-4f19-ae4b-eb3276b8dac7".to_string(),
         oracle_id: Some("cc919e99-4c12-421b-a5d9-7607774e1d10".to_string()),
         card_name: "Counterspell".to_string(),
+        printed_name: None,
         set_code: "MH2".to_string(),
         set_name: "Modern Horizons 2".to_string(),
         collector_number: "267".to_string(),

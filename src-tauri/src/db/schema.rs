@@ -162,3 +162,64 @@ CREATE TABLE IF NOT EXISTS local_image_cache (
 
 CREATE INDEX IF NOT EXISTS idx_local_image_cache_id ON local_image_cache(scryfall_id);
 "#;
+
+pub const MIGRATION_004_MULTILINGUAL_SUPPORT: &str = r#"
+-- Recreate printings table with lang and printed_name and UNIQUE(set_code, collector_number, lang)
+CREATE TABLE IF NOT EXISTS printings_multilingual (
+    id TEXT PRIMARY KEY,
+    card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    scryfall_id TEXT,
+    set_code TEXT NOT NULL,
+    collector_number TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    release_date TEXT,
+    layout TEXT NOT NULL DEFAULT 'normal',
+    rarity TEXT,
+    mana_cost TEXT,
+    type_line TEXT,
+    image_url TEXT,
+    price_eur INTEGER,
+    image_small TEXT,
+    image_art_crop TEXT,
+    image_status TEXT DEFAULT 'available',
+    card_faces TEXT,
+    lang TEXT NOT NULL DEFAULT 'en',
+    printed_name TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    CONSTRAINT uq_printings_set_collector_lang UNIQUE (set_code, collector_number, lang)
+);
+
+INSERT INTO printings_multilingual (
+    id, card_id, scryfall_id, set_code, collector_number, set_name,
+    release_date, layout, rarity, mana_cost, type_line, image_url,
+    price_eur, image_small, image_art_crop, image_status, card_faces,
+    lang, printed_name, created_at, updated_at
+)
+SELECT 
+    id, card_id, scryfall_id, set_code, collector_number, set_name,
+    release_date, layout, rarity, mana_cost, type_line, image_url,
+    price_eur, image_small, image_art_crop, image_status, card_faces,
+    'en', NULL, created_at, updated_at
+FROM printings;
+
+DROP TABLE printings;
+ALTER TABLE printings_multilingual RENAME TO printings;
+
+CREATE INDEX IF NOT EXISTS idx_printings_card_id ON printings(card_id);
+CREATE INDEX IF NOT EXISTS idx_printings_set_code ON printings(set_code);
+CREATE INDEX IF NOT EXISTS idx_printings_scryfall_id ON printings(scryfall_id);
+CREATE INDEX IF NOT EXISTS idx_printings_lang ON printings(lang);
+CREATE INDEX IF NOT EXISTS idx_printings_printed_name ON printings(printed_name);
+
+-- Extend scryfall_cache with localized printed name and indexes
+ALTER TABLE scryfall_cache ADD COLUMN lang TEXT NOT NULL DEFAULT 'en';
+ALTER TABLE scryfall_cache ADD COLUMN printed_name TEXT;
+ALTER TABLE scryfall_cache ADD COLUMN printed_name_normalized TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_scryfall_cache_printed_name ON scryfall_cache(printed_name_normalized);
+CREATE INDEX IF NOT EXISTS idx_scryfall_cache_lang ON scryfall_cache(lang);
+
+-- Add printed_name to inventory_items
+ALTER TABLE inventory_items ADD COLUMN printed_name TEXT;
+"#;
