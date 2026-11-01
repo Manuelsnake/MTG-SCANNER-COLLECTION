@@ -348,3 +348,162 @@ fn test_duplicate_handling_for_printings() {
     assert_eq!(info.inventory_count, 2);
     assert_eq!(info.total_card_quantity, 3);
 }
+
+#[test]
+fn test_milestone_1_acceptance_lifecycle() {
+    let tmp = NamedTempFile::new().expect("Failed to create temporary acceptance test database");
+    let path = tmp.path().to_path_buf();
+
+    let card_id: String;
+    let col_vault_id: String;
+    let col_trade_id: String;
+
+    // Steps 1 to 8: Active application session
+    {
+        let db =
+            Database::init_file(&path).expect("Failed to initialize database on temporary file");
+
+        // Step 1: Create a collection
+        let col1 = db
+            .create_collection("Temporary Collection", Some("To be deleted"))
+            .expect("Step 1 failed: create collection");
+        assert_eq!(col1.name, "Temporary Collection");
+
+        let col_vault = db
+            .create_collection("Rare Vault", Some("High value cards"))
+            .expect("Failed to create vault collection");
+        col_vault_id = col_vault.id;
+
+        let col_trade = db
+            .create_collection("Trade Binder", Some("Available for trade"))
+            .expect("Failed to create trade collection");
+        col_trade_id = col_trade.id;
+
+        // Step 2: List existing collections
+        let collections = db
+            .list_collections()
+            .expect("Step 2 failed: list collections");
+        assert_eq!(collections.len(), 3);
+        assert!(collections.iter().any(|c| c.name == "Temporary Collection"));
+        assert!(collections.iter().any(|c| c.name == "Rare Vault"));
+        assert!(collections.iter().any(|c| c.name == "Trade Binder"));
+
+        // Step 3: Rename a collection
+        let renamed = db
+            .rename_collection(
+                &col1.id,
+                "Renamed Temporary",
+                Some("Updated temporary notes"),
+            )
+            .expect("Step 3 failed: rename collection");
+        assert_eq!(renamed.name, "Renamed Temporary");
+        assert_eq!(
+            renamed.description,
+            Some("Updated temporary notes".to_string())
+        );
+
+        // Step 4: Delete a collection safely
+        db.delete_collection(&col1.id)
+            .expect("Step 4 failed: delete collection");
+        let collections_after_del = db
+            .list_collections()
+            .expect("Failed list collections after delete");
+        assert_eq!(collections_after_del.len(), 2);
+        assert!(!collections_after_del.iter().any(|c| c.id == col1.id));
+
+        // Step 5: Insert a manually entered card printing
+        let inserted_card = db
+            .add_manual_card(AddManualCardInput {
+                card_name: "Mox Diamond".to_string(),
+                set_code: "STH".to_string(),
+                collector_number: "138".to_string(),
+                set_name: "Stronghold".to_string(),
+                quantity: 1,
+                language: "en".to_string(),
+                finish: "nonfoil".to_string(),
+                condition: "NM".to_string(),
+                purchase_price: Some(65000), // €650.00
+                currency: Some("EUR".to_string()),
+                location_id: None,
+                notes: Some("Reserved List staple".to_string()),
+            })
+            .expect("Step 5 failed: insert manual card");
+        assert_eq!(inserted_card.card_name, "Mox Diamond");
+        assert_eq!(inserted_card.set_code, "STH");
+        assert_eq!(inserted_card.quantity, 1);
+        card_id = inserted_card.id.clone();
+
+        // Step 6: Display inventory records
+        let inventory = db
+            .get_inventory_items(None, None)
+            .expect("Step 6 failed: display inventory records");
+        assert_eq!(inventory.len(), 1);
+        assert_eq!(inventory[0].card_name, "Mox Diamond");
+        assert_eq!(inventory[0].purchase_price, Some(65000));
+        assert_eq!(inventory[0].currency, "EUR");
+
+        // Step 7: Update card quantities
+        let updated_qty = db
+            .update_inventory_quantity(&card_id, 2, false)
+            .expect("Step 7 failed: increment quantity");
+        assert_eq!(updated_qty, 3);
+
+        // Step 8: Assign an inventory item to multiple virtual collections
+        db.assign_to_collection(&col_vault_id, &card_id)
+            .expect("Step 8a failed: assign to Rare Vault");
+        db.assign_to_collection(&col_trade_id, &card_id)
+            .expect("Step 8b failed: assign to Trade Binder");
+
+        let items_in_vault = db
+            .get_inventory_items(None, Some(&col_vault_id))
+            .expect("Get vault items failed");
+        assert_eq!(items_in_vault.len(), 1);
+        assert_eq!(items_in_vault[0].collection_ids.len(), 2);
+
+        let items_in_trade = db
+            .get_inventory_items(None, Some(&col_trade_id))
+            .expect("Get trade items failed");
+        assert_eq!(items_in_trade.len(), 1);
+        assert_eq!(items_in_trade[0].id, card_id);
+    } // Database closed and dropped here
+
+    // Step 9: Reopen / restart application session from same database file
+    {
+        let db = Database::init_file(&path).expect("Step 9 failed: reopen database from disk");
+
+        // Step 10: Confirm all saved data remains available
+        let info = db
+            .get_info()
+            .expect("Step 10 failed: get db info after restart");
+        assert_eq!(info.schema_version, 1);
+        assert_eq!(info.integrity_status, "ok");
+        assert_eq!(info.cards_count, 1);
+        assert_eq!(info.printings_count, 1);
+        assert_eq!(info.inventory_count, 1);
+        assert_eq!(info.total_card_quantity, 3);
+        assert_eq!(info.collections_count, 2);
+
+        let collections = db
+            .list_collections()
+            .expect("List collections after restart failed");
+        assert_eq!(collections.len(), 2);
+        let vault = collections
+            .iter()
+            .find(|c| c.id == col_vault_id)
+            .expect("Vault collection missing");
+        assert_eq!(vault.total_items, 1);
+        assert_eq!(vault.total_quantity, 3);
+
+        let inventory = db
+            .get_inventory_items(None, None)
+            .expect("Get inventory after restart failed");
+        assert_eq!(inventory.len(), 1);
+        assert_eq!(inventory[0].id, card_id);
+        assert_eq!(inventory[0].card_name, "Mox Diamond");
+        assert_eq!(inventory[0].quantity, 3);
+        assert_eq!(inventory[0].purchase_price, Some(65000));
+        assert_eq!(inventory[0].collection_ids.len(), 2);
+        assert!(inventory[0].collection_ids.contains(&col_vault_id));
+        assert!(inventory[0].collection_ids.contains(&col_trade_id));
+    }
+}
