@@ -57,7 +57,8 @@ collection.db*
 scryfall_cache.db*
 
 # --- AI Models & Weights (Downloaded On-Demand by User) ---
-models/
+/models/
+!src-tauri/src/models/
 **/*.gguf
 **/*.bin
 **/*.safetensors
@@ -65,14 +66,14 @@ models/
 *.part
 
 # --- Scans, Temporary Images & Crops (Privacy & Size) ---
-scans/
-crops/
-temp/
-debug/
-captures/
-Ritagli/
-Scansioni/
-scansioni/
+/scans/
+/crops/
+/temp/
+/debug/
+/captures/
+/Ritagli/
+/Scansioni/
+/scansioni/
 *.tmp
 *.png
 *.jpg
