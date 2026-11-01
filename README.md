@@ -1,5 +1,6 @@
 # MTG Collection Manager
-*Provisional Future Brand: ManaTeca — Scry & Tell*
+
+## Provisional Future Brand: ManaTeca — Scry & Tell
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)
