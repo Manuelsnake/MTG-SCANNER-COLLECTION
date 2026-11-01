@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0 # Full history required for secret scanning
+          fetch-depth: 0 # Full git history required for comprehensive secret scanning
 
       - name: Verify Documentation & License Files
         run: |
@@ -26,8 +26,7 @@ jobs:
 
       - name: Verify No Forbidden Binary or Sensitive Files Tracked by Git
         run: |
-          # Use git ls-files to inspect ONLY files actually tracked by version control,
-          # avoiding false alarms from local workspace scratch files.
+          # Inspect ONLY Git-tracked files via git ls-files.
           FORBIDDEN=$(git ls-files \
             '*.gguf' '*.bin' '*.safetensors' '*.onnx' \
             '*.db' '*.db-wal' '*.db-shm' '*.sqlite' '*.sqlite3' \
@@ -42,29 +41,25 @@ jobs:
           echo "Check passed: No forbidden binary or secret files are tracked by Git."
 
       - name: Run Gitleaks Secret Scanner
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Gitleaks scans commit history for hardcoded tokens, API keys and credentials.
 
   documentation-lint-and-links:
     name: Markdown Linting & Link Validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Markdown Linting (markdownlint-cli2)
-        uses: DavidAnson/markdownlint-cli2-action@v19
+        uses: DavidAnson/markdownlint-cli2-action@v25
         with:
           globs: "**/*.md"
 
       - name: Markdown Link Checker (Lychee)
         uses: lycheeverse/lychee-action@v2
         with:
-          # Verify local document references and standard web links.
-          # Corporate endpoints (e.g. company.wizards.com) use Cloudflare/Akamai bot protection
-          # which blocks automated headless CI runners with HTTP 403; we exclude them to prevent false negatives.
           args: >-
             --verbose
             --no-progress

@@ -78,7 +78,8 @@ MTG Collection Manager
   - PoC standalone, accelerazione Vulkan per GPU (AMD Radeon / NVIDIA), modelli LFM2.5-VL, fallback No-AI.
 - **Milestone 6: Inventario Fisico & Collezioni Virtuali**
   - Griglia virtualizzata (oltre 20.000 carte), coordinate di stoccaggio fisico, collezioni molti-a-molti.
-  - Prezzi EUR Scryfall, CardTrader API, link Cardmarket, esportazioni Moxfield/Archidekt/Deckbox.
+- **Milestone 7: Prezzi EUR & Esportatori Certificati**
+  - Scryfall EUR, CardTrader API, link Cardmarket, esportazioni Moxfield/Archidekt/Deckbox.
 - **Milestone 8: Packaging Cross-Platform & GitHub Release**
   - Installer Windows `.exe` (NSIS) e `.msi`, Linux `.AppImage`/`.deb`, macOS `.dmg`.
 
@@ -89,4 +90,7 @@ MTG Collection Manager
 - **Codice del Progetto:** Rilasciato sotto [Licenza Apache, Versione 2.0](LICENSE).
 - **Note di Terze Parti:** Consultare il file [NOTICE](NOTICE) per licenze e note relative alle integrazioni pianificate (Cardloader, TWAINDSM, llama.cpp, Liquid AI).
 - **Disclaimer Ufficiale Wizards of the Coast:** Wizards of the Coast, Magic: The Gathering e i rispettivi loghi sono marchi registrati di Wizards of the Coast LLC negli Stati Uniti e in altri paesi. © 1993-2026 Wizards. Tutti i diritti riservati.
-  MTG Collection Manager non è affiliato, sponsorizzato, supportato o specificamente approvato da Wizards of the Coast LLC. MTG Collection Manager può utilizzare i marchi e altre proprietà intellettuali di Wizards of the Coast LLC conformemente a quanto consentito dalla [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy) di Wizards. Per ulteriori informazioni su Wizards of the Coast o sui suoi marchi, visitare il sito web [https://company.wizards.com/](https://company.wizards.com/). Il codice software originale sviluppato dal progetto MTG Collection Manager è protetto da copyright dei suoi contributori sotto Licenza Apache 2.0 e non rivendica alcuna titolarità sulle proprietà intellettuali appartenenti a Wizards of the Coast LLC.
+
+  MTG Collection Manager è un contenuto amatoriale non ufficiale consentito dalle Linee guida sui contenuti amatoriali. Non è approvato né autorizzato da Wizards. Parte dei materiali utilizzati è proprietà di Wizards of the Coast. © Wizards of the Coast LLC.
+
+  MTG Collection Manager non è affiliato, sponsorizzato, supportato o specificamente approvato da Wizards of the Coast LLC. MTG Collection Manager può utilizzare i marchi e altre proprietà intellettuali di Wizards of the Coast LLC conformemente a quanto consentito dalle [Linee guida sui contenuti amatoriali](https://company.wizards.com/en/legal/fancontentpolicy) di Wizards. Per ulteriori informazioni su Wizards of the Coast o sui suoi marchi, visitare il sito web [https://company.wizards.com/](https://company.wizards.com/). Il codice software originale sviluppato dal progetto MTG Collection Manager è protetto da copyright dei suoi contributori sotto Licenza Apache 2.0 e non rivendica alcuna titolarità sulle proprietà intellettuali appartenenti a Wizards of the Coast LLC.

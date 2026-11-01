@@ -90,4 +90,7 @@ MTG Collection Manager
 - **Project Code:** Licensed under the [Apache License, Version 2.0](LICENSE).
 - **Third-Party Notices:** See the [NOTICE](NOTICE) file for licenses and attributions regarding planned integrations (Cardloader, TWAINDSM, llama.cpp, Liquid AI).
 - **Wizards of the Coast Official Disclaimer:** Wizards of the Coast, Magic: The Gathering, and their logos are trademarks of Wizards of the Coast LLC in the United States and other countries. © 1993-2026 Wizards. All Rights Reserved.
+
+  MTG Collection Manager is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. © Wizards of the Coast LLC.
+
   MTG Collection Manager is not affiliated with, endorsed, sponsored, or specifically approved by Wizards of the Coast LLC. MTG Collection Manager may use the trademarks and other intellectual property of Wizards of the Coast LLC, which is permitted under Wizards' [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy). For more information about Wizards of the Coast or any of Wizards' trademarks or other intellectual property, please visit their website at [https://company.wizards.com/](https://company.wizards.com/). Original software code created by the MTG Collection Manager project is copyrighted by its contributors under the Apache License, Version 2.0, and does not claim ownership of any intellectual property belonging to Wizards of the Coast LLC.
