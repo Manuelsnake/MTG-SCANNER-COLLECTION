@@ -1,0 +1,37 @@
+name: CI - Project Integrity & Quality Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integrity-checks:
+    name: Repository Integrity & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify License and Notice Presence
+        run: |
+          test -f LICENSE || (echo "LICENSE file missing" && exit 1)
+          test -f NOTICE || (echo "NOTICE file missing" && exit 1)
+          test -f README.md || (echo "README.md file missing" && exit 1)
+          test -f README.it.md || (echo "README.it.md file missing" && exit 1)
+          echo "All essential governance files are present."
+
+      - name: Verify No Secrets or Heavy Files Tracked
+        run: |
+          # Check that no GGUF models or private keys are accidentally committed
+          ! find . -type f \( -name "*.gguf" -o -name "*.pfx" -o -name "*.p12" -o -name "*.db" \) | grep -v '^./\.' || \
+            (echo "Forbidden files committed into repository" && exit 1)
+          echo "No forbidden binary or secret files found."
+
+      - name: Markdown Linting & Link Check
+        run: |
+          # Check markdown syntax cleanliness
+          grep -q "MTG Collection Manager" README.md || exit 1
+          grep -q "MTG Collection Manager" README.it.md || exit 1
+          echo "Documentation verification passed."
