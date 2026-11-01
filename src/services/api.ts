@@ -1,11 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AddManualCardInput,
+  AddScryfallCardInput,
   CollectionSummary,
   CreateLocationInput,
   DatabaseInfo,
   InventoryItemDetail,
   Location,
+  ScryfallCard,
+  ScryfallSearchResult,
 } from "../types";
 
 export const api = {
@@ -61,6 +64,10 @@ export const api = {
     return await invoke<InventoryItemDetail>("add_manual_card", { input });
   },
 
+  async addCardFromScryfall(input: AddScryfallCardInput): Promise<InventoryItemDetail> {
+    return await invoke<InventoryItemDetail>("add_card_from_scryfall", { input });
+  },
+
   async updateInventoryQuantity(
     id: string,
     deltaOrSet: number,
@@ -88,5 +95,25 @@ export const api = {
 
   async deleteLocation(id: string): Promise<void> {
     await invoke("delete_location", { id });
+  },
+
+  // Scryfall Commands
+  async scryfallAutocomplete(query: string): Promise<string[]> {
+    return await invoke<string[]>("scryfall_autocomplete", { query });
+  },
+
+  async scryfallSearch(query: string, page = 1): Promise<ScryfallSearchResult[]> {
+    return await invoke<ScryfallSearchResult[]>("scryfall_search", { query, page });
+  },
+
+  async scryfallGetPrintings(oracleId: string): Promise<ScryfallSearchResult[]> {
+    return await invoke<ScryfallSearchResult[]>("scryfall_get_printings", { oracleId });
+  },
+
+  async scryfallGetCard(setCode: string, collectorNumber: string): Promise<ScryfallCard> {
+    return await invoke<ScryfallCard>("scryfall_get_card", {
+      setCode,
+      collectorNumber,
+    });
   },
 };

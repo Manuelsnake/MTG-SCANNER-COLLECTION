@@ -18,6 +18,15 @@ pub enum AppError {
     #[error("Conflict error: {0}")]
     Conflict(String),
 
+    #[error("Network error: {0}")]
+    Network(String),
+
+    #[error("Scryfall API error: {0}")]
+    Scryfall(String),
+
+    #[error("Rate limit exceeded: {0}")]
+    RateLimit(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
 }

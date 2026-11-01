@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Navbar } from "./components/Navbar";
+import { ScryfallSearchModal } from "./components/ScryfallSearchModal";
 import { StatusBanner } from "./components/StatusBanner";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import { Dashboard } from "./pages/Dashboard";
@@ -28,6 +29,7 @@ export const App: React.FC = () => {
 
   // Modals
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+  const [isScryfallModalOpen, setIsScryfallModalOpen] = useState(false);
   const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
 
   const loadAllData = useCallback(async () => {
@@ -148,6 +150,7 @@ export const App: React.FC = () => {
                 inventory={inventory}
                 setActiveTab={setActiveTab}
                 onOpenAddCard={() => setIsAddCardModalOpen(true)}
+                onOpenScryfallSearch={() => setIsScryfallModalOpen(true)}
                 onOpenCreateCollection={() => setIsCreateCollectionModalOpen(true)}
               />
             )}
@@ -158,6 +161,7 @@ export const App: React.FC = () => {
                 collections={collections}
                 locations={locations}
                 onAddCard={handleAddCard}
+                onOpenScryfallModal={() => setIsScryfallModalOpen(true)}
                 onUpdateQuantity={handleUpdateQuantity}
                 onDeleteItem={handleDeleteItem}
                 onAssignToCollection={handleAssignToCollection}
@@ -198,6 +202,15 @@ export const App: React.FC = () => {
           </>
         )}
       </main>
+
+      {/* Global Scryfall Search Modal */}
+      <ScryfallSearchModal
+        isOpen={isScryfallModalOpen}
+        onClose={() => setIsScryfallModalOpen(false)}
+        collections={collections}
+        locations={locations}
+        onCardAdded={loadAllData}
+      />
 
       <footer className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-400">
         <p>

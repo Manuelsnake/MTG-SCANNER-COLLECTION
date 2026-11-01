@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, Clock, Info } from "lucide-react";
+import { CheckCircle2, Clock, Globe } from "lucide-react";
 
 export const StatusBanner: React.FC = () => {
   return (
@@ -7,29 +7,29 @@ export const StatusBanner: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mt-0.5">
-            <Info className="w-5 h-5" />
+            <Globe className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-slate-100 text-sm sm:text-base">
-                Milestone 1 — Desktop Foundations & Relational SQLite
+                Milestone 2 — Scryfall Integration & Card Search
               </h2>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 <CheckCircle2 className="w-3 h-3" />
-                Active Database
+                Scryfall Connected
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Data is stored permanently in the operating system application directory via SQLite
-              with WAL journaling, foreign keys, versioned migrations, and integer currency units.
+              Internal Scryfall REST client with conservative rate-limiter, local SQLite caching,
+              instant autocomplete, printings selector, and rich card inventory cataloging.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/50 text-[11px] text-slate-400">
-            <Clock className="w-3 h-3 text-amber-400" />
-            <span>Scryfall API: Milestone 2</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-medium">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>Scryfall API & Cache: Milestone 2</span>
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700/50 text-[11px] text-slate-400">
             <Clock className="w-3 h-3 text-amber-400" />

@@ -2,11 +2,13 @@ pub mod commands;
 pub mod db;
 pub mod error;
 pub mod models;
+pub mod scryfall;
 
 use std::sync::Arc;
 use tauri::Manager;
 
 use crate::db::Database;
+use crate::scryfall::CardIdentificationService;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,7 +27,11 @@ pub fn run() {
             let db = Database::init_file(&db_path)
                 .expect("Failed to initialize SQLite database with migrations");
 
-            app.manage(Arc::new(db));
+            let db_arc = Arc::new(db);
+            let card_service = Arc::new(CardIdentificationService::new(db_arc.get_conn()));
+
+            app.manage(db_arc);
+            app.manage(card_service);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -41,6 +47,7 @@ pub fn run() {
             crate::commands::remove_from_collection,
             // Inventory
             crate::commands::add_manual_card,
+            crate::commands::add_card_from_scryfall,
             crate::commands::get_inventory_items,
             crate::commands::update_inventory_quantity,
             crate::commands::delete_inventory_item,
@@ -48,6 +55,11 @@ pub fn run() {
             crate::commands::create_location,
             crate::commands::list_locations,
             crate::commands::delete_location,
+            // Scryfall
+            crate::commands::scryfall_autocomplete,
+            crate::commands::scryfall_search,
+            crate::commands::scryfall_get_printings,
+            crate::commands::scryfall_get_card,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

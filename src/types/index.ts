@@ -24,10 +24,14 @@ export interface InventoryItemDetail {
   id: string;
   printing_id: string;
   card_id: string;
+  scryfall_id?: string | null;
   card_name: string;
   set_code: string;
   collector_number: string;
   set_name: string;
+  rarity?: string | null;
+  mana_cost?: string | null;
+  image_url?: string | null;
   quantity: number;
   language: string;
   finish: string;
@@ -56,6 +60,72 @@ export interface AddManualCardInput {
   currency?: string | null;
   location_id?: string | null;
   notes?: string | null;
+}
+
+export interface ScryfallSearchResult {
+  scryfall_id: string;
+  oracle_id: string | null;
+  name: string;
+  set_code: string;
+  set_name: string;
+  collector_number: string;
+  released_at: string | null;
+  rarity: string | null;
+  mana_cost: string | null;
+  type_line: string | null;
+  colors: string[];
+  image_url: string | null;
+  image_small: string | null;
+  image_art_crop: string | null;
+  finishes: string[];
+  price_eur: number | null; // Cents
+  price_eur_foil: number | null; // Cents
+  scryfall_uri: string | null;
+}
+
+export interface ScryfallCard {
+  id: string;
+  oracle_id?: string | null;
+  name: string;
+  lang: string;
+  released_at?: string | null;
+  layout?: string | null;
+  mana_cost?: string | null;
+  cmc?: number | null;
+  type_line?: string | null;
+  oracle_text?: string | null;
+  colors?: string[] | null;
+  color_identity?: string[] | null;
+  set: string;
+  set_name: string;
+  collector_number: string;
+  rarity: string;
+  finishes: string[];
+  scryfall_uri?: string | null;
+}
+
+export interface AddScryfallCardInput {
+  scryfall_id: string;
+  oracle_id?: string | null;
+  card_name: string;
+  set_code: string;
+  collector_number: string;
+  set_name: string;
+  release_date?: string | null;
+  layout?: string | null;
+  rarity?: string | null;
+  mana_cost?: string | null;
+  type_line?: string | null;
+  image_url?: string | null;
+  quantity: number;
+  language: string;
+  finish: string;
+  condition: string;
+  purchase_price?: number | null;
+  currency?: string | null;
+  location_id?: string | null;
+  notes?: string | null;
+  collection_ids: string[];
 }
 
 export interface Location {

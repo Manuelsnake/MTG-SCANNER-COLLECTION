@@ -3,7 +3,7 @@ use tauri::State;
 
 use crate::db::Database;
 use crate::error::AppResult;
-use crate::models::{AddManualCardInput, InventoryItemDetail};
+use crate::models::{AddManualCardInput, AddScryfallCardInput, InventoryItemDetail};
 
 #[tauri::command]
 pub fn add_manual_card(
@@ -11,6 +11,14 @@ pub fn add_manual_card(
     db: State<'_, Arc<Database>>,
 ) -> AppResult<InventoryItemDetail> {
     db.add_manual_card(input)
+}
+
+#[tauri::command]
+pub fn add_card_from_scryfall(
+    input: AddScryfallCardInput,
+    db: State<'_, Arc<Database>>,
+) -> AppResult<InventoryItemDetail> {
+    db.add_card_from_scryfall(input)
 }
 
 #[tauri::command]

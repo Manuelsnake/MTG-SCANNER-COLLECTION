@@ -3,7 +3,7 @@ pub mod schema;
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 use log::info;
@@ -12,8 +12,8 @@ use uuid::Uuid;
 
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    AddManualCardInput, Collection, CollectionSummary, CreateLocationInput, InventoryItemDetail,
-    Location,
+    AddManualCardInput, AddScryfallCardInput, Collection, CollectionSummary, CreateLocationInput,
+    InventoryItemDetail, Location,
 };
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -30,7 +30,7 @@ pub struct DatabaseInfo {
 }
 
 pub struct Database {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
     path: PathBuf,
 }
 
@@ -56,7 +56,7 @@ impl Database {
         );
 
         Ok(Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
             path: path.to_path_buf(),
         })
     }
@@ -68,9 +68,13 @@ impl Database {
         migrations::run_migrations(&mut conn)?;
 
         Ok(Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
             path: PathBuf::from(":memory:"),
         })
+    }
+
+    pub fn get_conn(&self) -> Arc<Mutex<Connection>> {
+        Arc::clone(&self.conn)
     }
 
     fn apply_pragmas(conn: &mut Connection) -> AppResult<()> {
@@ -440,10 +444,14 @@ impl Database {
             id: inventory_id,
             printing_id,
             card_id,
+            scryfall_id: None,
             card_name: card_name.to_string(),
             set_code,
             collector_number: collector_number.to_string(),
             set_name: set_name.to_string(),
+            rarity: None,
+            mana_cost: None,
+            image_url: None,
             quantity: input.quantity,
             language: input.language.trim().to_lowercase(),
             finish: input.finish.trim().to_lowercase(),
@@ -460,6 +468,251 @@ impl Database {
         })
     }
 
+    pub fn add_card_from_scryfall(
+        &self,
+        input: AddScryfallCardInput,
+    ) -> AppResult<InventoryItemDetail> {
+        let card_name = input.card_name.trim();
+        let set_code = input.set_code.trim().to_uppercase();
+        let collector_number = input.collector_number.trim();
+        let set_name = input.set_name.trim();
+
+        if card_name.is_empty() {
+            return Err(AppError::Validation(
+                "Card name cannot be empty".to_string(),
+            ));
+        }
+        if set_code.is_empty() {
+            return Err(AppError::Validation("Set code cannot be empty".to_string()));
+        }
+        if collector_number.is_empty() {
+            return Err(AppError::Validation(
+                "Collector number cannot be empty".to_string(),
+            ));
+        }
+        if input.quantity <= 0 {
+            return Err(AppError::Validation(
+                "Quantity must be greater than zero".to_string(),
+            ));
+        }
+
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        let now = Utc::now().to_rfc3339();
+
+        // 1. Resolve or create canonical card
+        let card_id: String = {
+            let existing: Option<String> = tx
+                .query_row(
+                    "SELECT id FROM cards WHERE LOWER(name) = LOWER(?1)",
+                    params![card_name],
+                    |row| row.get(0),
+                )
+                .optional()?;
+
+            if let Some(id) = existing {
+                if let Some(ref oracle) = input.oracle_id {
+                    tx.execute(
+                        "UPDATE cards SET oracle_id = COALESCE(oracle_id, ?1), updated_at = ?2 WHERE id = ?3",
+                        params![oracle, now, id],
+                    )?;
+                }
+                id
+            } else {
+                let new_id = Uuid::new_v4().to_string();
+                tx.execute(
+                    "INSERT INTO cards (id, oracle_id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![new_id, input.oracle_id, card_name, now, now],
+                )?;
+                new_id
+            }
+        };
+
+        // 2. Resolve or create printing
+        let printing_id: String = {
+            let existing: Option<(String, Option<String>)> = tx
+                .query_row(
+                    "SELECT id, image_url FROM printings WHERE set_code = ?1 AND collector_number = ?2",
+                    params![set_code, collector_number],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+
+            if let Some((id, existing_img)) = existing {
+                if existing_img.is_none() && input.image_url.is_some() {
+                    tx.execute(
+                        r#"
+                        UPDATE printings 
+                        SET scryfall_id = COALESCE(scryfall_id, ?1),
+                            rarity = COALESCE(rarity, ?2),
+                            mana_cost = COALESCE(mana_cost, ?3),
+                            type_line = COALESCE(type_line, ?4),
+                            image_url = COALESCE(image_url, ?5),
+                            updated_at = ?6
+                        WHERE id = ?7
+                        "#,
+                        params![
+                            input.scryfall_id,
+                            input.rarity,
+                            input.mana_cost,
+                            input.type_line,
+                            input.image_url,
+                            now,
+                            id
+                        ],
+                    )?;
+                }
+                id
+            } else {
+                let new_id = Uuid::new_v4().to_string();
+                let layout = input.layout.unwrap_or_else(|| "normal".to_string());
+                tx.execute(
+                    r#"
+                    INSERT INTO printings 
+                    (id, card_id, scryfall_id, set_code, collector_number, set_name, release_date, layout, rarity, mana_cost, type_line, image_url, created_at, updated_at) 
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                    "#,
+                    params![
+                        new_id,
+                        card_id,
+                        input.scryfall_id,
+                        set_code,
+                        collector_number,
+                        set_name,
+                        input.release_date,
+                        layout,
+                        input.rarity,
+                        input.mana_cost,
+                        input.type_line,
+                        input.image_url,
+                        now,
+                        now
+                    ],
+                )?;
+                new_id
+            }
+        };
+
+        // 3. Resolve existing compatible inventory record or create new
+        let lang = input.language.trim().to_lowercase();
+        let finish = input.finish.trim().to_lowercase();
+        let condition = input.condition.trim().to_uppercase();
+        let currency = input
+            .currency
+            .unwrap_or_else(|| "EUR".to_string())
+            .trim()
+            .to_uppercase();
+
+        let existing_inv: Option<(String, i64)> = if let Some(ref loc_id) = input.location_id {
+            tx.query_row(
+                r#"
+                SELECT id, quantity FROM inventory_items 
+                WHERE printing_id = ?1 AND language = ?2 AND finish = ?3 AND condition = ?4 AND location_id = ?5
+                "#,
+                params![printing_id, lang, finish, condition, loc_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).optional()?
+        } else {
+            tx.query_row(
+                r#"
+                SELECT id, quantity FROM inventory_items 
+                WHERE printing_id = ?1 AND language = ?2 AND finish = ?3 AND condition = ?4 AND location_id IS NULL
+                "#,
+                params![printing_id, lang, finish, condition],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).optional()?
+        };
+
+        let inventory_id = if let Some((existing_id, existing_qty)) = existing_inv {
+            let new_qty = existing_qty + input.quantity;
+            tx.execute(
+                "UPDATE inventory_items SET quantity = ?1, updated_at = ?2 WHERE id = ?3",
+                params![new_qty, now, existing_id],
+            )?;
+            existing_id
+        } else {
+            let new_inv_id = Uuid::new_v4().to_string();
+            tx.execute(
+                r#"
+                INSERT INTO inventory_items (
+                    id, printing_id, quantity, language, finish, condition, 
+                    purchase_price, currency, location_id, notes, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                "#,
+                params![
+                    new_inv_id,
+                    printing_id,
+                    input.quantity,
+                    lang,
+                    finish,
+                    condition,
+                    input.purchase_price,
+                    currency,
+                    input.location_id,
+                    input.notes.as_deref().map(str::trim),
+                    now,
+                    now
+                ],
+            )?;
+            new_inv_id
+        };
+
+        // 4. Assign to collections
+        for col_id in &input.collection_ids {
+            let link_id = Uuid::new_v4().to_string();
+            tx.execute(
+                "INSERT OR IGNORE INTO collection_items (id, inventory_item_id, collection_id, assigned_at) VALUES (?1, ?2, ?3, ?4)",
+                params![link_id, inventory_id, col_id, now],
+            )?;
+        }
+
+        let location_name: Option<String> = if let Some(ref loc_id) = input.location_id {
+            tx.query_row(
+                "SELECT name FROM locations WHERE id = ?1",
+                params![loc_id],
+                |row| row.get(0),
+            )
+            .optional()?
+        } else {
+            None
+        };
+
+        let final_quantity: i64 = tx.query_row(
+            "SELECT quantity FROM inventory_items WHERE id = ?1",
+            params![inventory_id],
+            |row| row.get(0),
+        )?;
+
+        tx.commit()?;
+
+        Ok(InventoryItemDetail {
+            id: inventory_id,
+            printing_id,
+            card_id,
+            scryfall_id: Some(input.scryfall_id),
+            card_name: card_name.to_string(),
+            set_code,
+            collector_number: collector_number.to_string(),
+            set_name: set_name.to_string(),
+            rarity: input.rarity,
+            mana_cost: input.mana_cost,
+            image_url: input.image_url,
+            quantity: final_quantity,
+            language: lang,
+            finish,
+            condition,
+            acquisition_date: None,
+            purchase_price: input.purchase_price,
+            currency,
+            location_id: input.location_id,
+            location_name,
+            notes: input.notes,
+            collection_ids: input.collection_ids,
+            created_at: now.clone(),
+            updated_at: now,
+        })
+    }
+
     pub fn get_inventory_items(
         &self,
         search: Option<&str>,
@@ -470,8 +723,8 @@ impl Database {
         let mut query = String::from(
             r#"
             SELECT 
-                inv.id, inv.printing_id, p.card_id, c.name as card_name,
-                p.set_code, p.collector_number, p.set_name,
+                inv.id, inv.printing_id, p.card_id, p.scryfall_id, c.name as card_name,
+                p.set_code, p.collector_number, p.set_name, p.rarity, p.mana_cost, p.image_url,
                 inv.quantity, inv.language, inv.finish, inv.condition,
                 inv.acquisition_date, inv.purchase_price, inv.currency,
                 inv.location_id, loc.name as location_name, inv.notes,
@@ -515,7 +768,7 @@ impl Database {
 
         let items = stmt
             .query_map(params_slice.as_slice(), |row| {
-                let col_ids_str: Option<String> = row.get(19)?;
+                let col_ids_str: Option<String> = row.get(23)?;
                 let collection_ids = col_ids_str
                     .map(|s| s.split(',').map(|id| id.to_string()).collect())
                     .unwrap_or_default();
@@ -524,22 +777,26 @@ impl Database {
                     id: row.get(0)?,
                     printing_id: row.get(1)?,
                     card_id: row.get(2)?,
-                    card_name: row.get(3)?,
-                    set_code: row.get(4)?,
-                    collector_number: row.get(5)?,
-                    set_name: row.get(6)?,
-                    quantity: row.get(7)?,
-                    language: row.get(8)?,
-                    finish: row.get(9)?,
-                    condition: row.get(10)?,
-                    acquisition_date: row.get(11)?,
-                    purchase_price: row.get(12)?,
-                    currency: row.get(13)?,
-                    location_id: row.get(14)?,
-                    location_name: row.get(15)?,
-                    notes: row.get(16)?,
-                    created_at: row.get(17)?,
-                    updated_at: row.get(18)?,
+                    scryfall_id: row.get(3)?,
+                    card_name: row.get(4)?,
+                    set_code: row.get(5)?,
+                    collector_number: row.get(6)?,
+                    set_name: row.get(7)?,
+                    rarity: row.get(8)?,
+                    mana_cost: row.get(9)?,
+                    image_url: row.get(10)?,
+                    quantity: row.get(11)?,
+                    language: row.get(12)?,
+                    finish: row.get(13)?,
+                    condition: row.get(14)?,
+                    acquisition_date: row.get(15)?,
+                    purchase_price: row.get(16)?,
+                    currency: row.get(17)?,
+                    location_id: row.get(18)?,
+                    location_name: row.get(19)?,
+                    notes: row.get(20)?,
+                    created_at: row.get(21)?,
+                    updated_at: row.get(22)?,
                     collection_ids,
                 })
             })?

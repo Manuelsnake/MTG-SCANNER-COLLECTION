@@ -2,7 +2,9 @@ use chrono::Utc;
 use log::info;
 use rusqlite::{params, Connection, Transaction};
 
-use crate::db::schema::{CREATE_MIGRATIONS_TABLE, MIGRATION_001_INITIAL_SCHEMA};
+use crate::db::schema::{
+    CREATE_MIGRATIONS_TABLE, MIGRATION_001_INITIAL_SCHEMA, MIGRATION_002_SCRYFALL_CACHE,
+};
 use crate::error::{AppError, AppResult};
 
 pub struct Migration {
@@ -11,11 +13,18 @@ pub struct Migration {
     pub sql: &'static str,
 }
 
-pub const ALL_MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    name: "001_initial_schema",
-    sql: MIGRATION_001_INITIAL_SCHEMA,
-}];
+pub const ALL_MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        name: "001_initial_schema",
+        sql: MIGRATION_001_INITIAL_SCHEMA,
+    },
+    Migration {
+        version: 2,
+        name: "002_scryfall_cache",
+        sql: MIGRATION_002_SCRYFALL_CACHE,
+    },
+];
 
 pub fn run_migrations(conn: &mut Connection) -> AppResult<i64> {
     // 1. Ensure migrations tracking table exists

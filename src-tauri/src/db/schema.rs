@@ -96,3 +96,42 @@ CREATE TABLE IF NOT EXISTS collection_items (
 CREATE INDEX IF NOT EXISTS idx_col_items_inventory ON collection_items(inventory_item_id);
 CREATE INDEX IF NOT EXISTS idx_col_items_collection ON collection_items(collection_id);
 "#;
+
+pub const MIGRATION_002_SCRYFALL_CACHE: &str = r#"
+-- Persistent Scryfall Card & Printing Cache
+CREATE TABLE IF NOT EXISTS scryfall_cache (
+    scryfall_id TEXT PRIMARY KEY,
+    oracle_id TEXT,
+    name TEXT NOT NULL,
+    name_normalized TEXT NOT NULL,
+    set_code TEXT NOT NULL,
+    collector_number TEXT NOT NULL,
+    set_name TEXT NOT NULL,
+    released_at TEXT,
+    rarity TEXT NOT NULL,
+    mana_cost TEXT,
+    type_line TEXT,
+    colors TEXT,
+    image_small TEXT,
+    image_normal TEXT,
+    image_large TEXT,
+    image_art_crop TEXT,
+    finishes TEXT NOT NULL,
+    price_eur INTEGER,
+    price_eur_foil INTEGER,
+    raw_json TEXT NOT NULL,
+    cached_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_scryfall_cache_name_norm ON scryfall_cache(name_normalized);
+CREATE INDEX IF NOT EXISTS idx_scryfall_cache_oracle_id ON scryfall_cache(oracle_id);
+CREATE INDEX IF NOT EXISTS idx_scryfall_cache_set_num ON scryfall_cache(set_code, collector_number);
+
+-- Extend printings with cached visual & metadata columns
+ALTER TABLE printings ADD COLUMN rarity TEXT;
+ALTER TABLE printings ADD COLUMN mana_cost TEXT;
+ALTER TABLE printings ADD COLUMN type_line TEXT;
+ALTER TABLE printings ADD COLUMN image_url TEXT;
+ALTER TABLE printings ADD COLUMN price_eur INTEGER;
+"#;

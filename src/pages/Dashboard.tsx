@@ -3,13 +3,15 @@ import {
   Bot,
   Boxes,
   Camera,
+  CheckCircle2,
   Cpu,
   Database,
-  Globe,
+  Image as ImageIcon,
   Layers,
   Library,
   Plus,
   Printer,
+  Search,
   Sparkles,
 } from "lucide-react";
 import type { ActiveTab, DatabaseInfo, InventoryItemDetail } from "../types";
@@ -19,6 +21,7 @@ interface DashboardProps {
   inventory: InventoryItemDetail[];
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAddCard: () => void;
+  onOpenScryfallSearch: () => void;
   onOpenCreateCollection: () => void;
 }
 
@@ -27,6 +30,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   inventory,
   setActiveTab,
   onOpenAddCard,
+  onOpenScryfallSearch,
   onOpenCreateCollection,
 }) => {
   const recentItems = inventory.slice(0, 5);
@@ -94,11 +98,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Quick Action Shortcuts */}
       <div className="flex flex-wrap items-center gap-3">
         <button
-          onClick={onOpenAddCard}
+          onClick={onOpenScryfallSearch}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-all shadow-md shadow-indigo-600/20"
         >
+          <Search className="w-4 h-4" />
+          <span>Search & Add via Scryfall</span>
+        </button>
+
+        <button
+          onClick={onOpenAddCard}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 font-medium text-sm transition-all"
+        >
           <Plus className="w-4 h-4" />
-          <span>Add Card to Inventory</span>
+          <span>Manual Entry</span>
         </button>
 
         <button
@@ -138,7 +150,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Layers className="w-8 h-8 text-slate-600 mx-auto mb-2" />
             <p className="text-sm text-slate-400">Your inventory is currently empty.</p>
             <p className="text-xs text-slate-400 mt-1">
-              Add your first card manually using the button above.
+              Add your first card using "Search & Add via Scryfall" above.
             </p>
           </div>
         ) : (
@@ -146,7 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-800/60 text-slate-400 uppercase tracking-wider text-[10px]">
                 <tr>
-                  <th className="px-4 py-2.5 rounded-l-lg">Card Name</th>
+                  <th className="px-4 py-2.5 rounded-l-lg">Card</th>
                   <th className="px-4 py-2.5">Set / #</th>
                   <th className="px-4 py-2.5">Finish</th>
                   <th className="px-4 py-2.5">Condition</th>
@@ -157,12 +169,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <tbody className="divide-y divide-slate-800/60">
                 {recentItems.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-slate-200">{item.card_name}</td>
-                    <td className="px-4 py-3 text-slate-400">
-                      <span className="font-mono text-indigo-400 uppercase">{item.set_code}</span>{" "}
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-10 bg-slate-800 rounded overflow-hidden shrink-0 border border-slate-700/60 flex items-center justify-center">
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.card_name}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <ImageIcon className="w-3.5 h-3.5 text-slate-600" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-200">{item.card_name}</p>
+                          {item.mana_cost && (
+                            <span className="text-[10px] font-mono text-indigo-400">
+                              {item.mana_cost}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-400">
+                      <span className="font-mono text-indigo-400 uppercase font-medium">
+                        {item.set_code}
+                      </span>{" "}
                       #{item.collector_number}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <span
                         className={`capitalize px-2 py-0.5 rounded text-[10px] font-medium ${
                           item.finish === "foil"
@@ -175,14 +212,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {item.finish}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-200 border border-slate-700">
                         {item.condition}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-bold text-slate-200">{item.quantity}</td>
-                    <td className="px-4 py-3 text-slate-400">
-                      {item.location_name || <span className="italic text-slate-400">Unassigned</span>}
+                    <td className="px-4 py-2.5 font-bold text-slate-200">{item.quantity}</td>
+                    <td className="px-4 py-2.5 text-slate-400">
+                      {item.location_name || (
+                        <span className="italic text-slate-400">Unassigned</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -196,18 +235,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5">
         <h3 className="font-semibold text-slate-100 text-sm mb-1">Architecture Roadmap</h3>
         <p className="text-xs text-slate-400 mb-4">
-          Future milestones will connect directly to this SQLite schema without breaking existing data:
+          Automated scanning pipelines will feed directly into this cataloging core:
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80">
-            <div className="flex items-center gap-2 text-indigo-400 mb-1">
-              <Globe className="w-4 h-4" />
-              <span className="text-xs font-semibold">Milestone 2</span>
+          <div className="p-3.5 rounded-lg bg-emerald-950/20 border border-emerald-500/30">
+            <div className="flex items-center gap-2 text-emerald-400 mb-1">
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="text-xs font-semibold">Milestone 2 (Active)</span>
             </div>
-            <p className="text-xs font-medium text-slate-200">Scryfall API & Bulk Data</p>
+            <p className="text-xs font-medium text-slate-200">Scryfall API & Cache</p>
             <p className="text-[11px] text-slate-400 mt-1">
-              Offline lookup, artwork caching, and automatic Oracle ID resolution.
+              Rate-limited HTTP client, SQLite cache table, autocomplete & printing resolution.
             </p>
           </div>
 
